@@ -67,6 +67,30 @@ TRANSITION_TERMS = (
     "楼下",
 )
 
+STRONG_TRANSITION_TERMS = (
+    "午休",
+    "午休时间",
+    "课间",
+    "教室",
+    "课堂",
+    "讲台",
+    "走廊",
+    "楼道",
+    "浴室",
+    "厕所",
+    "女厕",
+    "男厕",
+    "卫生间",
+    "洗手间",
+    "更衣室",
+    "宿舍",
+    "天台",
+    "楼顶",
+    "车站",
+    "饭店",
+    "医院",
+)
+
 
 def split_scenes(chapter_text: str, min_scene_chars: int = 80) -> list[SourceScene]:
     text = chapter_text.strip()
@@ -88,7 +112,8 @@ def split_scenes(chapter_text: str, min_scene_chars: int = 80) -> list[SourceSce
         if not merged:
             merged.append(part)
             continue
-        should_merge = len(merged[-1]) < min_scene_chars or (
+        starts_strong_transition = _starts_with_strong_transition(part)
+        should_merge = (len(merged[-1]) < min_scene_chars and not starts_strong_transition) or (
             len(part) < min_scene_chars and not _starts_with_transition(part)
         )
         if should_merge:
@@ -117,7 +142,10 @@ def _split_part_on_transitions(part: str, min_scene_chars: int) -> list[str]:
     current: list[str] = []
     current_len = 0
     for sentence in sentences:
-        starts_new_scene = bool(current) and current_len >= min_scene_chars and _starts_with_transition(sentence)
+        starts_new_scene = bool(current) and _starts_with_transition(sentence) and (
+            current_len >= min_scene_chars
+            or (current_len >= 10 and _starts_with_strong_transition(sentence))
+        )
         if starts_new_scene:
             pieces.append("".join(current).strip())
             current = [sentence]
@@ -133,3 +161,8 @@ def _split_part_on_transitions(part: str, min_scene_chars: int) -> list[str]:
 def _starts_with_transition(text: str) -> bool:
     stripped = text.lstrip(" ，,。；;“”\"")
     return any(stripped.startswith(term) for term in TRANSITION_TERMS)
+
+
+def _starts_with_strong_transition(text: str) -> bool:
+    stripped = text.lstrip(" ，,。；;“”\"")
+    return any(stripped.startswith(term) for term in STRONG_TRANSITION_TERMS)

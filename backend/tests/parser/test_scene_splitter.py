@@ -52,3 +52,12 @@ class SceneSplitterTest(unittest.TestCase):
         self.assertGreaterEqual(len(scenes), 3)
         self.assertTrue(any("女厕" in scene.text for scene in scenes))
         self.assertTrue(any("浴室" in scene.text for scene in scenes))
+
+    def test_strong_location_transition_can_split_after_short_setup(self):
+        text = "她合上课本，没有说话。女厕门口，水声从里面传出来。浴室里，镜子很快起了雾。"
+
+        scenes = split_scenes(text, min_scene_chars=40)
+
+        self.assertGreaterEqual(len(scenes), 3)
+        self.assertIn("女厕门口", scenes[1].text)
+        self.assertIn("浴室里", scenes[2].text)

@@ -105,6 +105,9 @@ def infer_stage(text: str, character_names: list[str] | None = None) -> dict:
     elif any(term in text for term in ["学校走廊", "教学楼走廊", "走廊", "楼道"]):
         location = "school_hallway"
         props.update(["corridor", "window", "door"])
+    elif any(term in text for term in ["教室", "课堂", "讲台", "课桌", "黑板", "午休", "课间", "同桌", "课本", "放学"]):
+        location = "classroom"
+        props.update(["blackboard", "desk", "chair"])
     elif any(term in text for term in ["卧室", "床边", "床上"]):
         location = "bedroom"
         props.update(["bed", "wardrobe", "lamp"])
@@ -144,9 +147,6 @@ def infer_stage(text: str, character_names: list[str] | None = None) -> dict:
     elif any(term in text for term in ["饭店", "餐厅", "饭馆", "吃饭"]):
         location = "restaurant"
         props.update(["table", "chair", "bowl"])
-    elif any(term in text for term in ["教室", "讲台", "课桌", "黑板"]):
-        location = "classroom"
-        props.update(["blackboard", "desk", "chair"])
     elif any(term in text for term in ["旧教学楼", "教学楼", "走廊"]):
         location = "old_school"
         props.update(["windows", "corridor", "door"])

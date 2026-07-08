@@ -252,6 +252,31 @@ class ScriptGeneratorTest(unittest.TestCase):
         self.assertEqual(toilet_ir["stage"]["location"], "toilet")
         self.assertIn("sink", toilet_ir["stage"]["props"])
 
+    def test_infers_classroom_from_school_time_cues(self):
+        scene = SourceScene(index=1, title="Scene 1", text="午休时间，她合上课本，同桌还趴在旁边睡觉。", start_offset=0, end_offset=24)
+        analysis = StoryAnalysis(
+            title="学校午休",
+            characters=[_character("她")],
+            events=[],
+            clues=[],
+            story_bible=StoryBible(title="学校午休", main_plot="", core_conflict="", themes=[], style_notes="", forbidden_changes=[]),
+        )
+        state = POVKnowledgeState(
+            project_id="project-1",
+            after_event_order=1,
+            known_facts=[],
+            unknown_facts=[],
+            suspected_facts=[],
+            false_beliefs=[],
+            forbidden_reveals=[],
+        )
+
+        scene_ir = generate_scene_ir(scene, analysis, state, chapter_index=1)
+
+        self.assertEqual(scene_ir["background"], "bg_classroom")
+        self.assertEqual(scene_ir["stage"]["location"], "classroom")
+        self.assertIn("desk", scene_ir["stage"]["props"])
+
 
 def _choice_texts_for(text: str) -> list[str]:
     choice_block = build_concrete_choice_block("common_001_001", text)
