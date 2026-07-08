@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "license_note": "External assets are referenced for runtime use. Do not redistribute third-party raw material packs in this repository; use the download script only after reviewing each source license.",
+  "backgrounds": [
+    {
+      "id": "minchi_classroom_front",
+      "type": "background",
+      "style": "anime",
+      "location": "classroom",
+      "tags": ["classroom", "school", "blackboard", "day"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/front_of_classroom_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/front_of_classroom/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_school_hallway",
+      "type": "background",
+      "style": "anime",
+      "location": "school_hallway",
+      "tags": ["school_hallway", "hallway", "school", "corridor"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/school_hallway_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/school_hallway/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_bathroom",
+      "type": "background",
+      "style": "anime",
+      "location": "bathroom",
+      "tags": ["bathroom", "bath", "shower", "home"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/japanese_bathroom_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/japanese_bathroom/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_small_bathroom",
+      "type": "background",
+      "style": "anime",
+      "location": "toilet",
+      "tags": ["toilet", "bathroom", "washroom", "sink", "private"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/small_bathroom_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/small_bathroom/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_living",
+      "type": "background",
+      "style": "anime",
+      "location": "home_living",
+      "tags": ["home_living", "living", "room", "home"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/living_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/living/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_bedroom",
+      "type": "background",
+      "style": "anime",
+      "location": "bedroom",
+      "tags": ["bedroom", "bed", "home"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/bedroom_6.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/bedroom/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_cafe",
+      "type": "background",
+      "style": "anime",
+      "location": "restaurant",
+      "tags": ["restaurant", "cafe", "food", "daily"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/cafe_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/cafe/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_street",
+      "type": "background",
+      "style": "anime",
+      "location": "street",
+      "tags": ["street", "residential", "road", "outside"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/residential_street_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/residential_street/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_old_hallway",
+      "type": "background",
+      "style": "anime",
+      "location": "old_school",
+      "tags": ["old_school", "ruin", "hallway", "suspense"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/ruined_hallway_1f_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/ruined_hallway_1f/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_hospital_lobby",
+      "type": "background",
+      "style": "anime",
+      "location": "hospital",
+      "tags": ["hospital", "lobby", "reception"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/hospital_lobby_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/hospital_lobby/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_bookstore",
+      "type": "background",
+      "style": "anime",
+      "location": "shop",
+      "tags": ["shop", "bookstore", "shelf"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/bookstore_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/bookstore/",
+      "source": "みんちりえ"
+    }
+  ],
+  "portraits": [
+    {
+      "id": "wata_female_20",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "young", "modern", "heroine"],
+      "url": "https://wataokiba.net/wp-content/uploads/2023/05/syoukai_josei_20_pw.jpg",
+      "source_url": "https://wataokiba.net/2023/05/01/josei20/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_female_19",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "fantasy", "heroine"],
+      "url": "https://wataokiba.net/wp-content/uploads/2021/09/syoukai_josei_19_akuma_1.jpg",
+      "source_url": "https://wataokiba.net/2021/03/18/josei19/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_female_18",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "fantasy", "soft"],
+      "url": "https://wataokiba.net/wp-content/uploads/2021/09/syoukai_josei_18_tenshi_1.jpg",
+      "source_url": "https://wataokiba.net/2021/03/16/josei18/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_male_16",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "male",
+      "age": "young",
+      "tags": ["male", "young", "modern"],
+      "url": "https://wataokiba.net/wp-content/uploads/2023/05/df3030748c85338f953635340a41cd2f.jpg",
+      "source_url": "https://wataokiba.net/2023/05/03/dansei16/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_male_15",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "male",
+      "age": "adult",
+      "tags": ["male", "adult", "formal"],
+      "url": "https://wataokiba.net/wp-content/uploads/2021/09/syoukai_dansei_15_looptie.jpg",
+      "source_url": "https://wataokiba.net/2020/12/07/dansei15/",
+      "source": "わたおきば"
+    }
+  ],
+  "bgm": [
+    {
+      "id": "bgm_daily",
+      "type": "bgm",
+      "mood": "daily",
+      "tags": ["daily", "bright", "school"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/story.mp3",
+      "source_url": "https://ontama-m.com/ongaku_akarui.html",
+      "source": "音楽の卵"
+    },
+    {
+      "id": "bgm_romance_light",
+      "type": "bgm",
+      "mood": "romance",
+      "tags": ["romance", "soft", "piano"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/ontama_piano2_milktea.mp3",
+      "source_url": "https://ontama-m.com/ongaku_piano2.html",
+      "source": "音楽の卵"
+    },
+    {
+      "id": "bgm_suspense_low",
+      "type": "bgm",
+      "mood": "suspense",
+      "tags": ["suspense", "dark", "low"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/gray.mp3",
+      "source_url": "https://ontama-m.com/ongaku_kurai.html",
+      "source": "音楽の卵"
+    }
+  ]
+}

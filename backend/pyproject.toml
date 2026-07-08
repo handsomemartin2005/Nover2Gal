@@ -1,0 +1,9 @@
+[project]
+name = "novel2gal-backend"
+version = "0.1.0"
+description = "Backend MVP skeleton for Novel2Gal"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.unittest]
+start-directory = "tests"

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Novel2Gal</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260709-gal-controls" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>Novel2Gal</h1>
+          <p>小说视角改编工作台</p>
+        </div>
+        <button id="runButton" type="button">运行</button>
+      </header>
+
+      <section class="workspace">
+        <form id="pipelineForm" class="panel input-panel">
+          <div class="field-row">
+            <label for="title">标题</label>
+            <input id="title" name="title" placeholder="可留空，上传 EPUB 时自动读取" />
+          </div>
+          <div class="field-row">
+            <label for="pov">视角</label>
+            <input id="pov" name="pov" placeholder="可留空，自动选择主要人物" />
+          </div>
+          <div class="field-row">
+            <label for="bookFile">文件</label>
+            <input id="bookFile" name="bookFile" type="file" accept=".txt,.md,.markdown,.epub" />
+          </div>
+          <div class="field-row">
+            <label for="maxScenes">改编场景数</label>
+            <input id="maxScenes" name="maxScenes" type="number" min="1" step="1" value="5" />
+          </div>
+          <div id="sceneRecommend" class="recommend-hint">推荐场景数：输入或上传后估算</div>
+          <div class="field-row">
+            <label>模型</label>
+            <div class="model-toggle" role="group" aria-label="DeepSeek 模型选择">
+              <input id="llmModel" name="llmModel" type="hidden" value="deepseek-v4-pro" />
+              <button class="model-option active" type="button" data-model="deepseek-v4-pro">V4 Pro</button>
+              <button class="model-option" type="button" data-model="deepseek-v4-flash">V4 Flash</button>
+            </div>
+          </div>
+          <label for="novelText">原文</label>
+          <textarea id="novelText" name="novelText" placeholder="也可以不上传文件，直接把小说正文粘贴到这里。"></textarea>
+        </form>
+
+        <section class="panel summary-panel">
+          <div class="panel-head">
+            <h2>分析</h2>
+            <span id="statusText">ready</span>
+          </div>
+          <div class="summary-grid">
+            <div>
+              <h3>角色</h3>
+              <ul id="characters"></ul>
+            </div>
+            <div>
+              <h3>场景</h3>
+              <ul id="scenes"></ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="gamePreview" class="panel preview-panel">
+          <div class="panel-head">
+            <h2>Galgame</h2>
+            <span id="gameCounter">0 / 0</span>
+          </div>
+          <div id="gameScreen" class="game-screen" data-bg="default">
+            <div class="scene-art" aria-hidden="true">
+              <div class="school-building">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <div id="characterStandee" class="character-standee">林</div>
+            </div>
+            <div class="game-meta">
+              <span id="gameSceneId">未生成</span>
+              <span id="gameBgm">bgm: -</span>
+            </div>
+            <div class="dialogue-box">
+              <div id="gameSpeaker" class="speaker-name">旁白</div>
+              <p id="gameDialogue">运行后会在这里播放改编出的场景。</p>
+              <div id="choiceList" class="choice-list"></div>
+            </div>
+          </div>
+          <div class="game-controls">
+            <button id="gameAuto" type="button" title="自动播放">自动</button>
+            <button id="gameFast" type="button" title="快进 5 页">快进</button>
+            <label class="jump-control" for="gameJump">跳转</label>
+            <input id="gameJump" type="number" min="1" value="1" />
+            <button id="gameJumpButton" type="button" title="跳转到指定页">Go</button>
+            <button id="gameBgmToggle" type="button" title="播放/暂停 BGM">音乐</button>
+            <button id="gameFullscreen" type="button" title="全屏播放">全屏</button>
+            <button id="gamePrev" type="button" title="上一句">←</button>
+            <button id="gameNext" type="button" title="下一句">→</button>
+          </div>
+        </section>
+
+        <section id="thoughtPanel" class="panel thought-panel">
+          <div class="panel-head">
+            <h2>AI思考</h2>
+            <span id="thoughtStatus">idle</span>
+          </div>
+          <div id="adapterStatus" class="adapter-status">改编来源：未运行</div>
+          <ol class="thought-steps">
+            <li data-step="import">读取原文</li>
+            <li data-step="split">章节切分</li>
+            <li data-step="analyze">角色分析</li>
+            <li data-step="pov">视角过滤</li>
+            <li data-step="adapt">剧本生成</li>
+            <li data-step="check">一致性检查</li>
+          </ol>
+          <div id="thoughtLog" class="thought-log">等待运行</div>
+        </section>
+
+        <section class="panel output-panel">
+          <div class="tabs" role="tablist">
+            <button class="tab active" type="button" data-target="renpyOutput">Ren'Py</button>
+            <button class="tab" type="button" data-target="jsonOutput">JSON</button>
+          </div>
+          <pre id="renpyOutput"></pre>
+          <pre id="jsonOutput" hidden></pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js?v=20260709-gal-controls"></script>
+  </body>
+</html>
