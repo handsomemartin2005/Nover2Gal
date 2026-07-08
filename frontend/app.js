@@ -8,6 +8,7 @@ const runButton = document.querySelector("#runButton");
 const bookFile = document.querySelector("#bookFile");
 const llmModelInput = document.querySelector("#llmModel");
 const modelOptions = document.querySelectorAll(".model-option");
+const modelHint = document.querySelector("#modelHint");
 const statusText = document.querySelector("#statusText");
 const charactersList = document.querySelector("#characters");
 const scenesList = document.querySelector("#scenes");
@@ -43,6 +44,16 @@ const THINKING_STEPS = [
   ["adapt", "正在改写为视觉小说场景"],
   ["check", "正在检查剧透和一致性"],
 ];
+const MODEL_DETAILS = {
+  "deepseek-v4-pro": {
+    label: "V4 Pro",
+    hint: "当前：V4 Pro，质量优先，适合长篇人物关系、伏笔梳理和复杂分支。",
+  },
+  "deepseek-v4-flash": {
+    label: "V4 Flash",
+    hint: "当前：V4 Flash，速度优先，适合快速预览、小段文本和多次试跑。",
+  },
+};
 const MIN_THINKING_MS = 1800;
 const CHARACTER_PORTRAITS = [
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=420&q=80",
@@ -158,6 +169,7 @@ runButton.addEventListener("click", () => {
 });
 
 loadExternalAssets();
+updateModelHint();
 
 gamePrev.addEventListener("click", () => {
   if (activeFrameIndex > 0) {
@@ -424,7 +436,7 @@ function selectedModel() {
 }
 
 function selectedModelLabel() {
-  return selectedModel() === "deepseek-v4-flash" ? "V4 Flash" : "V4 Pro";
+  return MODEL_DETAILS[selectedModel()]?.label || "V4 Pro";
 }
 
 function setSelectedModel(model) {
@@ -434,13 +446,22 @@ function setSelectedModel(model) {
   }
   modelOptions.forEach((button) => {
     button.classList.toggle("active", button.dataset.model === normalized);
+    button.setAttribute("aria-pressed", String(button.dataset.model === normalized));
   });
+  updateModelHint();
+}
+
+function updateModelHint() {
+  if (!modelHint) return;
+  const detail = MODEL_DETAILS[selectedModel()] || MODEL_DETAILS["deepseek-v4-pro"];
+  modelHint.textContent = `${detail.hint} 两个模式都按 1M 上下文链路传参。`;
 }
 
 function startThinkingProgress() {
   clearInterval(thinkingTimer);
   resetThinkingSteps();
   thinkingStartedAt = Date.now();
+  thoughtLog.textContent = `使用 ${selectedModelLabel()} 处理。`;
   let stepIndex = 0;
   updateThinkingStep(THINKING_STEPS[stepIndex][0], "active", THINKING_STEPS[stepIndex][1]);
   thinkingTimer = setInterval(() => {

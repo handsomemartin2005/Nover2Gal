@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Novel2Gal</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260709-gal-controls" />
+    <link rel="stylesheet" href="/static/styles.css?v=20260709-model-select" />
   </head>
   <body>
     <main class="app-shell">
@@ -39,10 +39,17 @@
             <label>模型</label>
             <div class="model-toggle" role="group" aria-label="DeepSeek 模型选择">
               <input id="llmModel" name="llmModel" type="hidden" value="deepseek-v4-pro" />
-              <button class="model-option active" type="button" data-model="deepseek-v4-pro">V4 Pro</button>
-              <button class="model-option" type="button" data-model="deepseek-v4-flash">V4 Flash</button>
+              <button class="model-option active" type="button" data-model="deepseek-v4-pro">
+                <strong>V4 Pro</strong>
+                <span>质量优先</span>
+              </button>
+              <button class="model-option" type="button" data-model="deepseek-v4-flash">
+                <strong>V4 Flash</strong>
+                <span>速度优先</span>
+              </button>
             </div>
           </div>
+          <div id="modelHint" class="model-hint">当前：V4 Pro，质量优先，适合长篇人物关系和复杂分支。</div>
           <label for="novelText">原文</label>
           <textarea id="novelText" name="novelText" placeholder="也可以不上传文件，直接把小说正文粘贴到这里。"></textarea>
         </form>
@@ -127,6 +134,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=20260709-gal-controls"></script>
+    <script src="/static/app.js?v=20260709-model-select"></script>
   </body>
 </html>
