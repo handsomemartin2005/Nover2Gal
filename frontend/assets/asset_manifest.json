@@ -13,6 +13,26 @@
       "source": "みんちりえ"
     },
     {
+      "id": "minchi_classroom_back",
+      "type": "background",
+      "style": "anime",
+      "location": "classroom",
+      "tags": ["classroom", "school", "desk", "day", "back"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/back_of_classroom_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/front_of_classroom/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_blackboard",
+      "type": "background",
+      "style": "anime",
+      "location": "classroom",
+      "tags": ["classroom", "school", "blackboard", "front"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/blackboard_1.png",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/front_of_classroom/",
+      "source": "みんちりえ"
+    },
+    {
       "id": "minchi_school_hallway",
       "type": "background",
       "style": "anime",
@@ -20,6 +40,26 @@
       "tags": ["school_hallway", "hallway", "school", "corridor"],
       "url": "https://min-chi.material.jp/wp-content/uploads/school_hallway_1.jpg",
       "source_url": "https://min-chi.material.jp/fm/bg_c/school_hallway/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_connecting_corridor",
+      "type": "background",
+      "style": "anime",
+      "location": "school_hallway",
+      "tags": ["school_hallway", "hallway", "school", "corridor", "bridge"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/connecting_corridor_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/school_hallway/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_school_rooftop",
+      "type": "background",
+      "style": "anime",
+      "location": "rooftop",
+      "tags": ["rooftop", "school", "sky", "fence", "day"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/school_rooftop_1.jpg",
+      "source_url": "https://min-chi.material.jp/",
       "source": "みんちりえ"
     },
     {
@@ -63,6 +103,16 @@
       "source": "みんちりえ"
     },
     {
+      "id": "minchi_cluttered_room",
+      "type": "background",
+      "style": "anime",
+      "location": "bedroom",
+      "tags": ["bedroom", "room", "cluttered", "home", "private"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/cluttered_room_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/single_room2/",
+      "source": "みんちりえ"
+    },
+    {
       "id": "minchi_cafe",
       "type": "background",
       "style": "anime",
@@ -70,6 +120,16 @@
       "tags": ["restaurant", "cafe", "food", "daily"],
       "url": "https://min-chi.material.jp/wp-content/uploads/cafe_1.jpg",
       "source_url": "https://min-chi.material.jp/fm/bg_c/cafe/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_bar",
+      "type": "background",
+      "style": "anime",
+      "location": "restaurant",
+      "tags": ["restaurant", "bar", "cafe", "food", "night"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/bar_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/casual_restaurant/",
       "source": "みんちりえ"
     },
     {
@@ -111,6 +171,26 @@
       "url": "https://min-chi.material.jp/wp-content/uploads/bookstore_1.jpg",
       "source_url": "https://min-chi.material.jp/fm/bg_c/bookstore/",
       "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_station_platform",
+      "type": "background",
+      "style": "anime",
+      "location": "station",
+      "tags": ["station", "platform", "train", "outside"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/city_station_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/station_platform/",
+      "source": "みんちりえ"
+    },
+    {
+      "id": "minchi_campus",
+      "type": "background",
+      "style": "anime",
+      "location": "school_hallway",
+      "tags": ["school_hallway", "school", "campus", "outside", "day"],
+      "url": "https://min-chi.material.jp/wp-content/uploads/campus_1.jpg",
+      "source_url": "https://min-chi.material.jp/fm/bg_c/shrine/",
+      "source": "みんちりえ"
     }
   ],
   "portraits": [
@@ -126,6 +206,39 @@
       "source": "わたおきば"
     },
     {
+      "id": "wata_female_20_stand_a",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "young", "modern", "heroine", "standing", "smile"],
+      "url": "https://wataokiba.net/wp-content/uploads/2023/05/josei_20_a-1.png",
+      "source_url": "https://wataokiba.net/2023/05/01/josei20/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_female_20_stand_b",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "young", "modern", "heroine", "standing", "serious"],
+      "url": "https://wataokiba.net/wp-content/uploads/2023/05/josei_20_b-1.png",
+      "source_url": "https://wataokiba.net/2023/05/01/josei20/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_female_20_stand_c",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "young", "modern", "heroine", "standing", "surprised"],
+      "url": "https://wataokiba.net/wp-content/uploads/2023/05/josei_20_c-1.png",
+      "source_url": "https://wataokiba.net/2023/05/01/josei20/",
+      "source": "わたおきば"
+    },
+    {
       "id": "wata_female_19",
       "type": "portrait",
       "style": "anime",
@@ -133,6 +246,28 @@
       "age": "young",
       "tags": ["female", "fantasy", "heroine"],
       "url": "https://wataokiba.net/wp-content/uploads/2021/09/syoukai_josei_19_akuma_1.jpg",
+      "source_url": "https://wataokiba.net/2021/03/18/josei19/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_female_19_stand_a",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "fantasy", "standing", "serious"],
+      "url": "https://wataokiba.net/wp-content/uploads/2021/03/josei_19_01_a.png",
+      "source_url": "https://wataokiba.net/2021/03/18/josei19/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_female_19_stand_b",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "fantasy", "standing", "soft"],
+      "url": "https://wataokiba.net/wp-content/uploads/2021/03/josei_19_01_b.png",
       "source_url": "https://wataokiba.net/2021/03/18/josei19/",
       "source": "わたおきば"
     },
@@ -148,6 +283,28 @@
       "source": "わたおきば"
     },
     {
+      "id": "wata_female_18_stand_a",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "fantasy", "standing", "soft"],
+      "url": "https://wataokiba.net/wp-content/uploads/2021/03/josei_18_01_a.png",
+      "source_url": "https://wataokiba.net/2021/03/16/josei18/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_female_18_stand_b",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "female",
+      "age": "young",
+      "tags": ["female", "fantasy", "standing", "smile"],
+      "url": "https://wataokiba.net/wp-content/uploads/2021/03/josei_18_01_b.png",
+      "source_url": "https://wataokiba.net/2021/03/16/josei18/",
+      "source": "わたおきば"
+    },
+    {
       "id": "wata_male_16",
       "type": "portrait",
       "style": "anime",
@@ -159,6 +316,28 @@
       "source": "わたおきば"
     },
     {
+      "id": "wata_male_16_stand_a",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "male",
+      "age": "young",
+      "tags": ["male", "young", "modern", "standing", "smile"],
+      "url": "https://wataokiba.net/wp-content/uploads/2023/05/dansei_16_a.png",
+      "source_url": "https://wataokiba.net/2023/05/03/dansei16/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_male_16_stand_b",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "male",
+      "age": "young",
+      "tags": ["male", "young", "modern", "standing", "serious"],
+      "url": "https://wataokiba.net/wp-content/uploads/2023/05/dansei_16_b.png",
+      "source_url": "https://wataokiba.net/2023/05/03/dansei16/",
+      "source": "わたおきば"
+    },
+    {
       "id": "wata_male_15",
       "type": "portrait",
       "style": "anime",
@@ -166,6 +345,28 @@
       "age": "adult",
       "tags": ["male", "adult", "formal"],
       "url": "https://wataokiba.net/wp-content/uploads/2021/09/syoukai_dansei_15_looptie.jpg",
+      "source_url": "https://wataokiba.net/2020/12/07/dansei15/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_male_15_stand_a",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "male",
+      "age": "adult",
+      "tags": ["male", "adult", "formal", "standing"],
+      "url": "https://wataokiba.net/wp-content/uploads/2020/12/dansei_15_a.png",
+      "source_url": "https://wataokiba.net/2020/12/07/dansei15/",
+      "source": "わたおきば"
+    },
+    {
+      "id": "wata_male_15_stand_b",
+      "type": "portrait",
+      "style": "anime",
+      "gender": "male",
+      "age": "adult",
+      "tags": ["male", "adult", "formal", "standing", "serious"],
+      "url": "https://wataokiba.net/wp-content/uploads/2020/12/dansei_15_b.png",
       "source_url": "https://wataokiba.net/2020/12/07/dansei15/",
       "source": "わたおきば"
     }
@@ -181,6 +382,33 @@
       "source": "音楽の卵"
     },
     {
+      "id": "bgm_school_morning",
+      "type": "bgm",
+      "mood": "daily",
+      "tags": ["daily", "bright", "school", "morning"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/matinomezame.mp3",
+      "source_url": "https://ontama-m.com/ongaku_akarui.html",
+      "source": "音楽の卵"
+    },
+    {
+      "id": "bgm_walk",
+      "type": "bgm",
+      "mood": "street",
+      "tags": ["daily", "walk", "street", "light"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/07_sanpo.mp3",
+      "source_url": "https://ontama-m.com/ongaku_akarui.html",
+      "source": "音楽の卵"
+    },
+    {
+      "id": "bgm_cafe",
+      "type": "bgm",
+      "mood": "restaurant",
+      "tags": ["daily", "cafe", "restaurant", "bright"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/kissa.mp3",
+      "source_url": "https://ontama-m.com/ongaku_akarui.html",
+      "source": "音楽の卵"
+    },
+    {
       "id": "bgm_romance_light",
       "type": "bgm",
       "mood": "romance",
@@ -190,11 +418,56 @@
       "source": "音楽の卵"
     },
     {
+      "id": "bgm_romance_soft",
+      "type": "bgm",
+      "mood": "romance",
+      "tags": ["romance", "soft", "piano", "confession"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/ontama_piano2_apricot.mp3",
+      "source_url": "https://ontama-m.com/ongaku_piano2.html",
+      "source": "音楽の卵"
+    },
+    {
+      "id": "bgm_rain",
+      "type": "bgm",
+      "mood": "rain",
+      "tags": ["rain", "piano", "quiet", "daily"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/ontama_piano2_amenohini.mp3",
+      "source_url": "https://ontama-m.com/ongaku_piano2.html",
+      "source": "音楽の卵"
+    },
+    {
+      "id": "bgm_memory",
+      "type": "bgm",
+      "mood": "memory",
+      "tags": ["memory", "piano", "soft", "sad"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/ontama_piano2_kaisou.mp3",
+      "source_url": "https://ontama-m.com/ongaku_piano2.html",
+      "source": "音楽の卵"
+    },
+    {
       "id": "bgm_suspense_low",
       "type": "bgm",
       "mood": "suspense",
       "tags": ["suspense", "dark", "low"],
       "url": "https://ontama-m.com/midi/data/mp3_file/original/gray.mp3",
+      "source_url": "https://ontama-m.com/ongaku_kurai.html",
+      "source": "音楽の卵"
+    },
+    {
+      "id": "bgm_tension_low",
+      "type": "bgm",
+      "mood": "tension",
+      "tags": ["suspense", "tension", "dark", "low"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/15_zawameki.mp3",
+      "source_url": "https://ontama-m.com/ongaku_kurai.html",
+      "source": "音楽の卵"
+    },
+    {
+      "id": "bgm_uneasy",
+      "type": "bgm",
+      "mood": "suspense",
+      "tags": ["suspense", "uneasy", "dark"],
+      "url": "https://ontama-m.com/midi/data/mp3_file/original/paranoia.mp3",
       "source_url": "https://ontama-m.com/ongaku_kurai.html",
       "source": "音楽の卵"
     }

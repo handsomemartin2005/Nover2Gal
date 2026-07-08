@@ -8,14 +8,14 @@ $staging = Join-Path $env:TEMP ("novel2gal-release-" + [guid]::NewGuid().ToStrin
 
 New-Item -ItemType Directory -Path $staging | Out-Null
 
-foreach ($item in @("backend", "frontend", "README.md", ".env.example")) {
+foreach ($item in @("backend", "frontend", "README.md", "README.zh-CN.md", ".env.example")) {
   $source = Join-Path $root $item
   if (Test-Path $source) {
     Copy-Item $source -Destination $staging -Recurse -Force
   }
 }
 
-foreach ($remove in @("backend\.venv")) {
+foreach ($remove in @("backend\.venv", "frontend\assets\vendor")) {
   $target = Join-Path $staging $remove
   if (Test-Path $target) {
     Remove-Item $target -Recurse -Force

@@ -8,7 +8,7 @@ $staging = Join-Path $env:TEMP ("novel2gal-release-" + [guid]::NewGuid().ToStrin
 
 New-Item -ItemType Directory -Path $staging | Out-Null
 
-$items = @("backend", "frontend", "README.md", ".env.example")
+$items = @("backend", "frontend", "README.md", "README.zh-CN.md", ".env.example")
 foreach ($item in $items) {
   $source = Join-Path $root $item
   if (Test-Path $source) {
@@ -19,6 +19,11 @@ foreach ($item in $items) {
 $venv = Join-Path $staging "backend\.venv"
 if (Test-Path $venv) {
   Remove-Item $venv -Recurse -Force
+}
+
+$vendorAssets = Join-Path $staging "frontend\assets\vendor"
+if (Test-Path $vendorAssets) {
+  Remove-Item $vendorAssets -Recurse -Force
 }
 
 Get-ChildItem -Path $staging -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force

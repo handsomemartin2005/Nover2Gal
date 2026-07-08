@@ -376,7 +376,7 @@ function parseMaxScenes(value) {
 
 async function loadExternalAssets() {
   try {
-    const response = await fetch("/static/assets/asset_manifest.json?v=20260709-gal-controls");
+    const response = await fetch("/static/assets/asset_manifest.json?v=20260709-assets-expanded");
     if (!response.ok) return;
     const payload = await response.json();
     externalAssetCatalog = {
@@ -691,9 +691,24 @@ function updateBgm(frame, force = false) {
 
 function selectBgmAsset(key) {
   const normalized = String(key || "bgm_daily");
+  const mood = bgmMood(normalized);
   return (externalAssetCatalog.bgm || []).find((asset) => asset.id === normalized)
-    || (externalAssetCatalog.bgm || []).find((asset) => normalized.includes(asset.mood))
+    || (externalAssetCatalog.bgm || []).find((asset) => asset.id === mood)
+    || (externalAssetCatalog.bgm || []).find((asset) => normalized.includes(asset.mood) || mood === asset.mood)
+    || (externalAssetCatalog.bgm || []).find((asset) => (asset.tags || []).includes(mood))
     || (externalAssetCatalog.bgm || [])[0];
+}
+
+function bgmMood(value) {
+  const normalized = String(value || "").toLowerCase();
+  if (/romance|love|heart|confession/.test(normalized)) return "romance";
+  if (/tension|tense|suspense|dark|uneasy|danger|high/.test(normalized)) return "tension";
+  if (/rain/.test(normalized)) return "rain";
+  if (/memory|sad|heartache|recall/.test(normalized)) return "memory";
+  if (/cafe|restaurant|food|tea/.test(normalized)) return "restaurant";
+  if (/street|walk|station/.test(normalized)) return "street";
+  if (/peace|calm|ordinary|daily|cheerful|casual|bright/.test(normalized)) return "daily";
+  return "daily";
 }
 
 function applyChoiceBranch(choice) {
