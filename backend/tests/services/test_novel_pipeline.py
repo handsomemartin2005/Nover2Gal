@@ -48,6 +48,7 @@ class NovelPipelineTest(unittest.TestCase):
 
         first_scene = result.adaptation_scenes[0]
         self.assertEqual(first_scene["scene_id"], "common_001_001")
+        self.assertIn("第一章 雨夜", first_scene["title"])
         self.assertTrue(any(block["type"] == "choice" for block in first_scene["blocks"]))
         self.assertIn("renpy", result.exports)
         self.assertIn("label common_001_001:", result.exports["renpy"])

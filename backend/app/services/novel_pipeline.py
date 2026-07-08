@@ -54,8 +54,9 @@ def run_pipeline(
             if scene_limit is not None and adapted_count >= scene_limit:
                 break
             state = _state_for_scene(pov_states, scene.index, default=state)
+            titled_scene = _scene_with_chapter_title(scene, chapter)
             scene_ir = _generate_scene_with_adapter(
-                scene=scene,
+                scene=titled_scene,
                 analysis=analysis,
                 state=state,
                 pov_character=pov_character,
@@ -170,6 +171,13 @@ def _normalize_max_scenes(value: int | None) -> int | None:
     if value is None or value <= 0:
         return None
     return value
+
+
+def _scene_with_chapter_title(scene: SourceScene, chapter: Chapter) -> SourceScene:
+    chapter_title = (chapter.title or "").strip()
+    if not chapter_title or scene.title.startswith(chapter_title):
+        return scene
+    return replace(scene, title=f"{chapter_title} · {scene.title}")
 
 
 def _choose_pov_character(value: str, analysis) -> str:

@@ -618,7 +618,7 @@ function renderActiveFrame() {
     gameJump.max = String(Math.max(gameFrames.length, 1));
     gameJump.value = String(gameFrames.length ? activeFrameIndex + 1 : 1);
   }
-  gameSceneId.textContent = frame.sceneId;
+  gameSceneId.textContent = sceneDisplayLabel(frame);
   gameBgm.textContent = `bgm: ${frame.bgm || "-"}`;
   gameSpeaker.textContent = frame.speaker;
   gameDialogue.textContent = frame.text;
@@ -642,6 +642,14 @@ function renderChoices(choices) {
       return button;
     }),
   );
+}
+
+function sceneDisplayLabel(frame) {
+  const title = String(frame.title || "").trim();
+  const id = String(frame.sceneId || "").trim();
+  if (!title || title === "Scene 1" || title === "未生成") return id || title || "未生成";
+  if (title.includes(id)) return title;
+  return `${title} · ${id}`;
 }
 
 function applySceneBackground(frame) {
