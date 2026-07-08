@@ -55,3 +55,23 @@ class SimpleAnalyzerTest(unittest.TestCase):
 
         self.assertTrue(analysis.characters)
         self.assertEqual(analysis.characters[0].visual_notes["style"], "anime")
+
+    def test_extracts_light_novel_names_without_promoting_fillers(self):
+        text = (
+            "第一章 恋人什么的，绝对不行！\n"
+            "真唯站在天台门口问我为什么逃走。\n"
+            "紫阳花同学笑着说：“小玲奈觉得如何？”\n"
+            "玲奈子低声回答：“我还没想好。”\n"
+            "纱月同学看着真唯，香穗也跟着点头。\n"
+            "这样没问题吧，所以我不知该怎么回答。"
+        )
+        chapters = split_chapters(text)
+        scenes_by_chapter = {chapter.index: split_scenes(chapter.text, min_scene_chars=10) for chapter in chapters}
+
+        analysis = analyze_story("轻小说人物测试", chapters, scenes_by_chapter)
+
+        names = [character.name for character in analysis.characters]
+        for expected in ["玲奈子", "真唯", "紫阳花", "纱月", "香穗"]:
+            self.assertIn(expected, names)
+        for bad_name in ["是这样", "这样", "这样没", "所以", "不知"]:
+            self.assertNotIn(bad_name, names)

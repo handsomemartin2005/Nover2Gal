@@ -3,6 +3,11 @@ from __future__ import annotations
 
 def infer_background_key(text: str) -> str:
     location = infer_stage(text).get("location")
+    return background_key_for_location(location)
+
+
+def background_key_for_location(location: str) -> str:
+    location = canonical_location(location)
     if location == "home_living":
         return "bg_home_living"
     if location == "restaurant":
@@ -46,6 +51,41 @@ def infer_background_key(text: str) -> str:
     return "bg_default"
 
 
+def canonical_location(location: str) -> str:
+    normalized = (location or "generic").strip().lower()
+    aliases = {
+        "home": "home_living",
+        "living": "home_living",
+        "living_room": "home_living",
+        "room": "bedroom",
+        "home_bedroom": "bedroom",
+        "hotel_room": "bedroom",
+        "school_rooftop": "rooftop",
+        "roof": "rooftop",
+        "roof_top": "rooftop",
+        "corridor": "school_hallway",
+        "hallway": "school_hallway",
+        "school_corridor": "school_hallway",
+        "restroom": "toilet",
+        "washroom": "toilet",
+        "lavatory": "toilet",
+        "pool_cafe": "restaurant",
+        "cafe": "restaurant",
+        "hotel_pool": "restaurant",
+        "pool": "restaurant",
+        "shopping_mall": "shop",
+        "shopping_mall_entrance": "shop",
+        "mall": "shop",
+        "bookstore": "shop",
+        "old_school_night": "old_school",
+        "station_platform": "station",
+        "train_platform": "station",
+        "bus_platform": "station",
+        "hotel_bathroom": "bathroom",
+    }
+    return aliases.get(normalized, normalized)
+
+
 def infer_stage(text: str, character_names: list[str] | None = None) -> dict:
     props: set[str] = set()
     characters: set[str] = set()
@@ -59,7 +99,7 @@ def infer_stage(text: str, character_names: list[str] | None = None) -> dict:
     elif any(term in text for term in ["宿舍", "寝室", "上下铺"]):
         location = "dormitory"
         props.update(["bed", "desk", "wardrobe"])
-    elif any(term in text for term in ["天台", "楼顶", "屋顶"]):
+    elif any(term in text for term in ["天台", "楼顶", "屋顶", "顶楼"]):
         location = "rooftop"
         props.update(["fence", "sky", "door"])
     elif any(term in text for term in ["学校走廊", "教学楼走廊", "走廊", "楼道"]):
@@ -194,7 +234,7 @@ def infer_stage(text: str, character_names: list[str] | None = None) -> dict:
         characters.add("protagonist")
 
     return {
-        "location": location,
+        "location": canonical_location(location),
         "props": sorted(props),
         "characters": sorted(characters),
     }

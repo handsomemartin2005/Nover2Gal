@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 import re
 from typing import Any, Protocol
@@ -86,6 +87,9 @@ def refine_analysis_with_deepseek(
     rejected = set(_string_list(payload.get("not_characters"))) | NOT_CHARACTER_NAMES
     visual_style = _normalize_visual_style(payload.get("visual_style"), text)
     characters = _normalize_characters(payload.get("characters", []), base_analysis, text, rejected, visual_style)
+    characters = _merge_base_characters(characters, base_analysis, rejected, text, visual_style)
+    if not characters:
+        characters = [_with_visual_style(character, visual_style) for character in base_analysis.characters]
     if not characters:
         return base_analysis
     return StoryAnalysis(
@@ -95,6 +99,44 @@ def refine_analysis_with_deepseek(
         clues=base_analysis.clues,
         story_bible=base_analysis.story_bible,
     )
+
+
+def _merge_base_characters(
+    characters: list[CharacterCard],
+    base_analysis: StoryAnalysis,
+    rejected: set[str],
+    source_text: str,
+    visual_style: str,
+) -> list[CharacterCard]:
+    merged: list[CharacterCard] = []
+    seen: set[str] = set()
+    base_names = {character.name for character in base_analysis.characters}
+    ordered_sources = (
+        [*base_analysis.characters, *characters]
+        if len(characters) < 2 and len(base_analysis.characters) >= 2
+        else [*characters, *base_analysis.characters]
+    )
+    for character in ordered_sources:
+        if character.name in seen:
+            continue
+        if character.name in base_names and not _is_valid_character_name(character.name, source_text, rejected, base_names):
+            continue
+        merged.append(_with_visual_style(character, visual_style))
+        seen.add(character.name)
+        if len(merged) >= 16:
+            break
+    return merged
+
+
+def _with_visual_style(character: CharacterCard, visual_style: str) -> CharacterCard:
+    visual_notes = {
+        **character.visual_notes,
+        "style": character.visual_notes.get("style") or visual_style,
+        "gender": character.visual_notes.get("gender") or "unknown",
+    }
+    if visual_style == "anime":
+        visual_notes["style"] = "anime"
+    return replace(character, visual_notes=visual_notes)
 
 
 def _build_messages(title: str, text: str, base_analysis: StoryAnalysis) -> list[dict[str, str]]:

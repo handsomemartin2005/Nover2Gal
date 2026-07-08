@@ -8,8 +8,9 @@ from app.parser.scene_splitter import SourceScene
 from app.schemas.story import CharacterCard, Clue, StoryAnalysis, StoryBible, StoryEvent
 
 
-NAME_RE = re.compile("[\u4e00-\u9fff]{2,4}")
-ACTION_NAME_RE = re.compile("([\u4e00-\u9fff]{2,5})(?:说|问|道|喊|叫|笑|哭|推|站|走|跑|看|望|把|想|发现|沉默|回答|递|拿|伸手|抬头)")
+ACTION_NAME_RE = re.compile("([\u4e00-\u9fff]{2,5})(?:说|问|道|喊|叫|笑|哭|推|站|走|跑|看|望|把|想|发现|沉默|回答|递|拿|伸手|抬头|点头|摇头)")
+HONORIFIC_NAME_RE = re.compile(r"([\u4e00-\u9fff]{2,4})(?:同学|学姐|学妹|老师|小姐|前辈|社长|会长)")
+FIRST_PERSON_NAME_RE = re.compile(r"我(?:叫|是|名叫)([\u4e00-\u9fff]{2,4})")
 SENTENCE_RE = re.compile(r"[^。！？!?]+[。！？!?]?")
 STOP_NAMES = {
     "第一章",
@@ -74,12 +75,104 @@ STOP_NAMES = {
     "男孩",
     "朋友",
     "同学",
+    "同学一",
+    "同学们",
+    "是这样",
+    "这样",
+    "这样没",
+    "现在",
+    "突然",
+    "自己",
+    "如此",
+    "竟然",
+    "所以",
+    "不知",
+    "如果",
+    "不要",
+    "可以",
+    "说着",
+    "挚友",
+    "流露出",
+    "眼见真唯",
 }
 PRONOUN_CHARS = {"我", "你", "他", "她", "它", "咱", "谁"}
 INVALID_NAME_PARTS = {"这个", "那个", "任何", "什么", "怎么", "应该", "没有", "人的", "心的", "角色", "人物", "原文", "原书"}
-NAME_ENDING_STOP_CHARS = set("的了是不么吗呢啊吧中上下来去到")
-NAME_PREFIX_NOISE = set("对向跟和同把被让给叫")
-TRAILING_MODIFIERS = ("低声", "轻声", "小声", "大声", "慢慢", "忽然", "突然", "转身", "抬头")
+NAME_ENDING_STOP_CHARS = set("的了是不么吗呢啊吧中上下来去到也却地")
+NAME_PREFIX_NOISE = set("对向跟和同把被让给叫的为使见起接且")
+TRAILING_MODIFIERS = ("也跟着", "跟着", "低声", "轻声", "小声", "大声", "慢慢", "忽然", "突然", "转身", "抬头")
+TRAILING_HONORIFICS = ("同学", "学姐", "学妹", "老师", "小姐", "前辈", "社长", "会长")
+INVALID_NAME_SUBSTRINGS = {
+    "这样",
+    "现在",
+    "突然",
+    "自己",
+    "如此",
+    "竟然",
+    "所以",
+    "不知",
+    "如果",
+    "不要",
+    "可以",
+    "应该",
+    "什么",
+    "怎么",
+    "我们",
+    "我的",
+    "但我",
+    "要是",
+    "话是",
+    "打算",
+    "说着",
+    "流露",
+    "眼见",
+    "毫无",
+    "觉得",
+    "开玩",
+    "没办法",
+    "直接",
+    "那种",
+    "绝对",
+    "其实",
+    "虽然",
+    "妹妹",
+    "同时",
+    "小声",
+    "见真唯",
+    "是在",
+    "而且",
+    "再次",
+    "才刚",
+    "接着",
+    "像是",
+    "虽说",
+    "一声",
+    "眼神",
+    "随后",
+    "暂时",
+    "里面",
+    "开口",
+    "脸上",
+    "点头",
+    "茫然",
+    "依然",
+    "老实",
+    "换句话",
+    "不可能",
+    "才能",
+    "随即",
+    "一边",
+    "看似",
+    "进一步",
+    "就会",
+    "随之",
+    "继续",
+    "以及",
+    "笑着",
+    "大家",
+    "让人",
+    "难道",
+    "与其",
+}
 CLUE_TERMS = ["泛黄的纸", "录音笔", "旧案", "日记", "信件", "照片", "钥匙"]
 
 
@@ -97,14 +190,31 @@ def _extract_character_names(text: str) -> list[str]:
     candidates: Counter[str] = Counter()
     for name in ACTION_NAME_RE.findall(text):
         cleaned = _trim_to_likely_name(name)
+        cleaned = _canonical_name(cleaned, text)
         if _is_valid_name_candidate(cleaned, text):
             candidates[cleaned] += text.count(cleaned)
+    for name in HONORIFIC_NAME_RE.findall(text):
+        cleaned = _trim_to_likely_name(name)
+        cleaned = _canonical_name(cleaned, text)
+        if _is_valid_name_candidate(cleaned, text):
+            candidates[cleaned] += text.count(cleaned) + 8
+    for name in FIRST_PERSON_NAME_RE.findall(text):
+        cleaned = _trim_to_likely_name(name)
+        cleaned = _canonical_name(cleaned, text)
+        if _is_valid_name_candidate(cleaned, text):
+            candidates[cleaned] += text.count(cleaned) + 40
 
-    return sorted(candidates, key=lambda name: text.find(name))
+    if len(text) > 20000:
+        candidates = Counter({name: score for name, score in candidates.items() if score >= 40 or _narrator_score(name, text) > 0})
+    return sorted(candidates, key=lambda name: (-_narrator_score(name, text), text.find(name)))
 
 
 def _trim_to_likely_name(value: str) -> str:
     cleaned = value.strip()
+    for suffix in TRAILING_HONORIFICS:
+        if cleaned.endswith(suffix) and len(cleaned) > len(suffix) + 1:
+            cleaned = cleaned[: -len(suffix)]
+            break
     while len(cleaned) > 2 and any(cleaned.endswith(modifier) for modifier in TRAILING_MODIFIERS):
         for modifier in TRAILING_MODIFIERS:
             if cleaned.endswith(modifier):
@@ -115,14 +225,30 @@ def _trim_to_likely_name(value: str) -> str:
     return cleaned
 
 
+def _canonical_name(name: str, text: str) -> str:
+    if name.startswith("小") and len(name) > 2:
+        stem = name[1:]
+        expanded = f"{stem}子"
+        if text.count(expanded) >= 2:
+            return expanded
+        if text.count(stem) >= 3:
+            return stem
+    return name
+
+
 def _looks_like_character(name: str, text: str) -> bool:
     if not name:
         return False
     pattern = re.compile(
-        rf"{re.escape(name)}(?:低声|轻声|小声|大声|慢慢|忽然|突然|转身|抬头)?"
-        r"(?:说|问|道|喊|叫|笑|哭|推|站|走|跑|看|望|把|想|发现|沉默|回答|递|拿|伸手|抬头)"
+        rf"{re.escape(name)}(?:同学|学姐|学妹|老师|小姐|前辈|社长|会长)?"
+        r"(?:也|却|就|还|都|又)?(?:跟着|轻轻|慢慢|马上|立刻)?"
+        r"(?:低声|轻声|小声|大声|慢慢|忽然|突然|转身|抬头|笑着|哭着)?"
+        r"(?:说|问|道|喊|叫|笑|哭|推|站|走|跑|看|望|把|想|发现|沉默|回答|递|拿|伸手|抬头|点头|摇头)"
     )
-    quote_pattern = re.compile(rf"[“\"][^”\"]+[”\"]\s*{re.escape(name)}(?:说|问|道|喊|回答)")
+    quote_pattern = re.compile(
+        rf"[“\"][^”\"]+[”\"]\s*{re.escape(name)}(?:同学|学姐|学妹|老师|小姐|前辈|社长|会长)?"
+        r"(?:说|问|道|喊|回答)"
+    )
     return bool(pattern.search(text) or quote_pattern.search(text))
 
 
@@ -130,6 +256,10 @@ def _is_valid_name_candidate(name: str, text: str) -> bool:
     if not name or name in STOP_NAMES:
         return False
     if any(part in name for part in INVALID_NAME_PARTS):
+        return False
+    if any(part in name for part in INVALID_NAME_SUBSTRINGS):
+        return False
+    if any(part in name for part in TRAILING_HONORIFICS):
         return False
     if len(name) < 2 or len(name) > 4:
         return False
@@ -142,6 +272,19 @@ def _is_valid_name_candidate(name: str, text: str) -> bool:
     return _looks_like_character(name, text)
 
 
+def _narrator_score(name: str, text: str) -> int:
+    score = 0
+    if re.search(rf"我(?:叫|是|名叫){re.escape(name)}", text):
+        score += 50
+    if name.startswith("小") and len(name) > 2:
+        score += 5
+    score += text.count(f"小{name}") * 3
+    if name.endswith("子") and len(name) > 2:
+        score += text.count(f"小{name[:-1]}") * 3
+    score += text.count(name) // 40
+    return score
+
+
 def _build_character_card(name: str, index: int, text: str = "") -> CharacterCard:
     key = _character_key(name, index)
     evidence = _character_evidence(name, text)
@@ -149,7 +292,7 @@ def _build_character_card(name: str, index: int, text: str = "") -> CharacterCar
         character_id=key,
         name=name,
         aliases=[],
-        role="主要角色" if index <= 3 else "配角",
+        role="主角" if index == 1 else ("主要角色" if index <= 4 else "配角"),
         personality=_infer_personality(name, text),
         speech_style=_infer_speech_style(name, text),
         relationship_map={},

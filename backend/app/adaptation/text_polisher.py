@@ -37,6 +37,7 @@ def polish_game_text(text: str) -> str:
         polished = re.sub(pattern, "", polished).strip()
     for source, target in AIISH_REPLACEMENTS.items():
         polished = polished.replace(source, target)
+    polished = polished.replace("「", "“").replace("」", "”").replace("『", "“").replace("』", "”")
     polished = _fix_punctuation(polished)
     return polished
 

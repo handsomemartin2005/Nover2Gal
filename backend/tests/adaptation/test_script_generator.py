@@ -78,6 +78,7 @@ class ScriptGeneratorTest(unittest.TestCase):
     def test_polisher_drops_orphan_quote_marks(self):
         self.assertEqual(polish_game_text("」"), "")
         self.assertEqual(polish_game_text("」  "), "")
+        self.assertEqual(polish_game_text("真唯说「不行。」"), "真唯说“不行。”")
 
     def test_rule_choices_use_concrete_actions_instead_of_generic_observe(self):
         scene = SourceScene(index=1, title="Scene 1", text="林雨停在门口，苏晚把纸条藏到身后。", start_offset=0, end_offset=20)

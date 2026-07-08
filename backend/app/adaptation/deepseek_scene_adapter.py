@@ -5,7 +5,7 @@ import re
 from typing import Any, Protocol
 
 from app.adaptation.choice_fallback import build_concrete_choice_block
-from app.adaptation.stage_builder import infer_background_key, infer_stage
+from app.adaptation.stage_builder import background_key_for_location, canonical_location, infer_background_key, infer_stage
 from app.adaptation.text_polisher import polish_choice_text, polish_game_text
 from app.parser.scene_splitter import SourceScene
 from app.rag.retriever import RetrievedSnippet
@@ -203,15 +203,17 @@ def _normalize_scene_ir(
     if not any(block.get("type") == "choice" for block in blocks):
         blocks = _insert_fallback_choice(blocks, scene_id, source_scene.text)
     blocks = _repair_choice_blocks(blocks, source_scene.text, scene_id)
+    stage = _normalize_stage(payload.get("stage"), source_scene, analysis, rag_context)
+    stage = _align_stage_to_visible_blocks(stage, blocks)
 
     return {
         "scene_id": scene_id,
         "title": source_scene.title,
-        "background": _normalize_background(payload.get("background"), source_scene, rag_context),
+        "background": _normalize_background(payload.get("background"), source_scene, rag_context, stage),
         "bgm": _string_or_default(payload.get("bgm"), "bgm_daily"),
         "blocks": blocks,
         "required_assets": _normalize_assets(payload.get("required_assets")),
-        "stage": _normalize_stage(payload.get("stage"), source_scene, analysis, rag_context),
+        "stage": stage,
         "pov_after_event_order": pov_state.after_event_order,
         "adapter": "deepseek",
         "rag_chunk_indexes": [snippet.chunk_index for snippet in rag_context],
@@ -362,8 +364,18 @@ def _normalize_assets(value: Any) -> list[dict[str, str]]:
     return assets
 
 
-def _normalize_background(value: Any, source_scene: SourceScene, rag_context: list[RetrievedSnippet]) -> str:
+def _normalize_background(
+    value: Any,
+    source_scene: SourceScene,
+    rag_context: list[RetrievedSnippet],
+    stage: dict[str, Any],
+) -> str:
     background = _string_or_default(value, "bg_default")
+    if background.startswith("bg_ai_"):
+        return background
+    stage_background = background_key_for_location(str(stage.get("location", "")))
+    if stage_background != "bg_default" and background != stage_background:
+        return stage_background
     inferred = infer_background_key(_source_and_rag_text(source_scene, rag_context))
     unknown_runtime_key = background not in KNOWN_BACKGROUND_KEYS and not background.startswith("bg_ai_")
     if inferred != "bg_default" and (background == "bg_default" or unknown_runtime_key):
@@ -380,6 +392,7 @@ def _normalize_stage(
     inferred = _infer_stage_from_source(source_scene, analysis, rag_context)
     if isinstance(value, dict):
         location = _string_or_default(value.get("location"), "")
+        location = canonical_location(location)
         props = value.get("props")
         characters = value.get("characters")
         if location and isinstance(props, list) and isinstance(characters, list):
@@ -401,6 +414,24 @@ def _normalize_stage(
                 "characters": normalized_characters,
             }
     return inferred
+
+
+def _align_stage_to_visible_blocks(stage: dict[str, Any], blocks: list[dict[str, Any]]) -> dict[str, Any]:
+    visible_text = "\n".join(
+        str(block.get("text", ""))
+        for block in blocks[:8]
+        if block.get("type") in {"narration", "dialogue"}
+    )
+    inferred = infer_stage(visible_text, [str(name) for name in stage.get("characters", [])])
+    inferred_location = inferred.get("location")
+    current_location = canonical_location(str(stage.get("location", "")))
+    if inferred_location and inferred_location != "generic" and inferred_location != current_location:
+        return {
+            "location": inferred_location,
+            "props": sorted(set(stage.get("props", [])) | set(inferred.get("props", []))),
+            "characters": sorted(set(stage.get("characters", [])) | set(inferred.get("characters", []))),
+        }
+    return {**stage, "location": current_location}
 
 
 def _infer_stage_from_source(

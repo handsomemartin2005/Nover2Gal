@@ -243,6 +243,53 @@ class DeepSeekSceneAdapterTest(unittest.TestCase):
         self.assertTrue(scene_ir["blocks"][0]["text"].startswith("我"))
         self.assertIn("问我", scene_ir["blocks"][0]["text"])
 
+    def test_stage_location_overrides_mismatched_background(self):
+        client = FakeDeepSeekClient(
+            {
+                "background": "bg_toilet",
+                "bgm": "bgm_daily",
+                "stage": {"location": "school_rooftop", "props": ["fence", "door"], "characters": ["真唯", "我"]},
+                "blocks": [{"type": "narration", "text": "放学后，我来到天台门口。"}],
+            }
+        )
+
+        scene_ir = adapt_scene_with_deepseek(
+            source_scene=SourceScene(index=1, title="Scene 1", text="放学后，我来到天台门口。", start_offset=0, end_offset=13),
+            analysis=_analysis(),
+            pov_state=_pov_state(),
+            chapter_index=1,
+            rag_context=[],
+            client=client,
+        )
+
+        self.assertEqual(scene_ir["stage"]["location"], "rooftop")
+        self.assertEqual(scene_ir["background"], "bg_rooftop")
+
+    def test_visible_text_location_can_correct_ai_stage(self):
+        client = FakeDeepSeekClient(
+            {
+                "background": "bg_toilet",
+                "bgm": "bgm_daily",
+                "stage": {"location": "toilet", "props": ["sink"], "characters": ["玲奈子", "真唯"]},
+                "blocks": [
+                    {"type": "narration", "text": "放学后，我刻意避开人群来到顶楼。"},
+                    {"type": "dialogue", "speaker": "真唯", "text": "为什么不行？"},
+                ],
+            }
+        )
+
+        scene_ir = adapt_scene_with_deepseek(
+            source_scene=SourceScene(index=1, title="Scene 1", text="放学后，我刻意避开人群来到顶楼，随后又想到女厕。", start_offset=0, end_offset=25),
+            analysis=_analysis(),
+            pov_state=_pov_state(),
+            chapter_index=1,
+            rag_context=[],
+            client=client,
+        )
+
+        self.assertEqual(scene_ir["stage"]["location"], "rooftop")
+        self.assertEqual(scene_ir["background"], "bg_rooftop")
+
 
 def _analysis():
     return StoryAnalysis(

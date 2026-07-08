@@ -179,7 +179,10 @@ def _choose_pov_character(value: str, analysis) -> str:
         if not character_names or requested in character_names:
             return requested
     if analysis.characters:
-        return analysis.characters[0].name
+        non_supporting = [
+            character for character in analysis.characters if "配角" not in str(character.role)
+        ]
+        return (non_supporting[0] if non_supporting else analysis.characters[0]).name
     return requested or "我"
 
 

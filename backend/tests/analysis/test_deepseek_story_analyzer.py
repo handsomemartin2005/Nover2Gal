@@ -83,3 +83,32 @@ class DeepSeekStoryAnalyzerTest(unittest.TestCase):
         self.assertEqual(names, ["孙少平", "田晓霞"])
         self.assertNotIn("这个", names)
         self.assertEqual(refined.characters[0].visual_notes["style"], "real")
+
+    def test_merges_rule_characters_when_ai_returns_too_few(self):
+        text = (
+            "第一章 天台\n"
+            "真唯站在天台门口问我为什么逃走。\n"
+            "玲奈子低声回答：“我还没想好。”\n"
+            "紫阳花同学笑着说：“小玲奈觉得如何？”"
+        )
+        chapters = split_chapters(text)
+        scenes_by_chapter = {chapter.index: split_scenes(chapter.text, min_scene_chars=10) for chapter in chapters}
+        base = analyze_story("轻小说人物合并测试", chapters, scenes_by_chapter)
+        client = FakeDeepSeekClient(
+            {
+                "visual_style": "anime",
+                "characters": [
+                    {"name": "平野同学", "role": "配角", "personality": "安静", "speech_style": "普通"}
+                ],
+                "not_characters": ["天台"],
+            }
+        )
+
+        refined = refine_analysis_with_deepseek("轻小说人物合并测试", text, base, client)
+
+        names = [character.name for character in refined.characters]
+        self.assertIn("真唯", names)
+        self.assertIn("玲奈子", names)
+        self.assertIn("紫阳花", names)
+        self.assertGreater(len(names), 1)
+        self.assertEqual(refined.characters[0].visual_notes["style"], "anime")
