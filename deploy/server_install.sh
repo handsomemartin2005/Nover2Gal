@@ -88,6 +88,13 @@ if ! grep -q '^MAX_PIPELINE_PROCESS_CHARS=' /etc/novel2gal.env; then
   echo 'MAX_PIPELINE_PROCESS_CHARS=120000' >> /etc/novel2gal.env
 fi
 
+if ! grep -q '^PROJECT_STORE_DIR=' /etc/novel2gal.env; then
+  echo 'PROJECT_STORE_DIR=/var/lib/novel2gal/projects' >> /etc/novel2gal.env
+fi
+
+mkdir -p /var/lib/novel2gal/projects
+chmod 700 /var/lib/novel2gal
+
 if ! grep -q '^DEEPSEEK_API=.\+' /etc/novel2gal.env; then
   echo
   read -r -s -p "Paste DEEPSEEK_API for server, then press Enter: " DEEPSEEK_API_VALUE

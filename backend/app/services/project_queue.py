@@ -15,7 +15,7 @@ from app.services.novel_pipeline import run_pipeline
 
 
 PROJECT_LOCK = threading.Lock()
-DEFAULT_PROJECT_STORE_DIR = Path(__file__).resolve().parents[3] / "data" / "projects"
+DEFAULT_PROJECT_STORE_DIR = Path("/var/lib/novel2gal/projects") if os.name != "nt" else Path(__file__).resolve().parents[3] / "data" / "projects"
 DEFAULT_MAX_CHAPTER_CHARS = 60_000
 
 
