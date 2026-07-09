@@ -3,38 +3,39 @@ window.addEventListener("error", (event) => {
   window.__novel2galError = `${event.message} @ ${event.filename}:${event.lineno}:${event.colno}`;
 });
 
-const form = document.querySelector("#pipelineForm");
-const runButton = document.querySelector("#runButton");
-const bookFile = document.querySelector("#bookFile");
-const llmModelInput = document.querySelector("#llmModel");
-const modelOptions = document.querySelectorAll(".model-option");
-const modelHint = document.querySelector("#modelHint");
-const statusText = document.querySelector("#statusText");
-const charactersList = document.querySelector("#characters");
-const scenesList = document.querySelector("#scenes");
-const renpyOutput = document.querySelector("#renpyOutput");
-const jsonOutput = document.querySelector("#jsonOutput");
-const thoughtStatus = document.querySelector("#thoughtStatus");
-const thoughtLog = document.querySelector("#thoughtLog");
-const adapterStatus = document.querySelector("#adapterStatus");
-const gameScreen = document.querySelector("#gameScreen");
-const sceneArt = document.querySelector(".scene-art");
-const gameCounter = document.querySelector("#gameCounter");
-const gameSceneId = document.querySelector("#gameSceneId");
-const gameBgm = document.querySelector("#gameBgm");
-const gameSpeaker = document.querySelector("#gameSpeaker");
-const gameDialogue = document.querySelector("#gameDialogue");
-const choiceList = document.querySelector("#choiceList");
-const characterStandee = document.querySelector("#characterStandee");
-const gamePrev = document.querySelector("#gamePrev");
-const gameNext = document.querySelector("#gameNext");
-const gameAuto = document.querySelector("#gameAuto");
-const gameFast = document.querySelector("#gameFast");
-const gameJump = document.querySelector("#gameJump");
-const gameJumpButton = document.querySelector("#gameJumpButton");
-const gameBgmToggle = document.querySelector("#gameBgmToggle");
-const gameFullscreen = document.querySelector("#gameFullscreen");
-const sceneRecommend = document.querySelector("#sceneRecommend");
+const appRoot = document.querySelector("#appRoot");
+let form;
+let runButton;
+let bookFile;
+let llmModelInput;
+let modelOptions = [];
+let modelHint;
+let statusText;
+let charactersList;
+let scenesList;
+let renpyOutput;
+let jsonOutput;
+let thoughtStatus;
+let thoughtLog;
+let adapterStatus;
+let gameScreen;
+let sceneArt;
+let gameCounter;
+let gameSceneId;
+let gameBgm;
+let gameSpeaker;
+let gameDialogue;
+let choiceList;
+let characterStandee;
+let gamePrev;
+let gameNext;
+let gameAuto;
+let gameFast;
+let gameJump;
+let gameJumpButton;
+let gameBgmToggle;
+let gameFullscreen;
+let sceneRecommend;
 
 const THINKING_STEPS = [
   ["import", "正在读取原文和电子书结构"],
@@ -165,103 +166,457 @@ let activeFrameIndex = 0;
 let thinkingTimer = null;
 let thinkingStartedAt = 0;
 
-runButton.addEventListener("click", () => {
-  runPipeline();
-});
-
-loadExternalAssets();
-updateModelHint();
-
-gamePrev.addEventListener("click", () => {
-  if (activeFrameIndex > 0) {
-    activeFrameIndex -= 1;
-    renderActiveFrame();
+function navigateTo(path) {
+  if (window.location.pathname !== path) {
+    window.history.pushState({}, "", path);
   }
-});
+  renderRoute(path);
+}
 
-gameNext.addEventListener("click", () => {
-  if (activeFrameIndex < gameFrames.length - 1) {
-    activeFrameIndex += 1;
-    renderActiveFrame();
+function bindRouteLinks(root = document) {
+  root.querySelectorAll("[data-route]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      navigateTo(link.getAttribute("href") || link.dataset.route || "/");
+    });
+  });
+}
+
+function renderRoute(path = window.location.pathname) {
+  clearTimeout(autoplayTimer);
+  autoplayEnabled = false;
+  if (bgmAudio) bgmAudio.pause();
+  resetWorkbenchDom();
+  if (path === "/create" || path === "/studio") {
+    appRoot.innerHTML = workbenchPageTemplate();
+    initWorkbench();
+    return;
   }
-});
-
-gameAuto?.addEventListener("click", () => {
-  autoplayEnabled = !autoplayEnabled;
-  gameAuto.classList.toggle("active", autoplayEnabled);
-  if (autoplayEnabled) {
-    scheduleAutoplay();
-  } else {
-    clearTimeout(autoplayTimer);
+  if (path === "/templates") {
+    appRoot.innerHTML = placeholderPageTemplate({
+      eyebrow: "Templates",
+      title: "模板与案例",
+      text: "这里会展示校园恋爱、悬疑推理、奇幻冒险、日常治愈等小说改编案例。",
+      action: "开始制作",
+      route: "/create",
+    });
+    bindRouteLinks(appRoot);
+    return;
   }
-});
-
-gameFast?.addEventListener("click", () => {
-  if (!gameFrames.length) return;
-  activeFrameIndex = Math.min(activeFrameIndex + 5, gameFrames.length - 1);
-  renderActiveFrame();
-});
-
-gameJumpButton?.addEventListener("click", () => {
-  jumpToFrame(Number.parseInt(gameJump?.value || "1", 10) - 1);
-});
-
-gameJump?.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    jumpToFrame(Number.parseInt(gameJump.value || "1", 10) - 1);
+  if (path === "/projects") {
+    appRoot.innerHTML = placeholderPageTemplate({
+      eyebrow: "Projects",
+      title: "我的项目",
+      text: "这里会管理历史作品、分析进度、剧本版本、场景素材和导出记录。",
+      action: "新建 Galgame",
+      route: "/create",
+    });
+    bindRouteLinks(appRoot);
+    return;
   }
-});
+  appRoot.innerHTML = landingPageTemplate();
+  bindRouteLinks(appRoot);
+}
 
-gameBgmToggle?.addEventListener("click", () => {
-  bgmEnabled = !bgmEnabled;
-  gameBgmToggle.classList.toggle("active", bgmEnabled);
-  updateBgm(gameFrames[activeFrameIndex] || emptyFrame(), true);
-});
+function resetWorkbenchDom() {
+  form = null;
+  runButton = null;
+  bookFile = null;
+  llmModelInput = null;
+  modelOptions = [];
+  modelHint = null;
+  statusText = null;
+  charactersList = null;
+  scenesList = null;
+  renpyOutput = null;
+  jsonOutput = null;
+  thoughtStatus = null;
+  thoughtLog = null;
+  adapterStatus = null;
+  gameScreen = null;
+  sceneArt = null;
+  gameCounter = null;
+  gameSceneId = null;
+  gameBgm = null;
+  gameSpeaker = null;
+  gameDialogue = null;
+  choiceList = null;
+  characterStandee = null;
+  gamePrev = null;
+  gameNext = null;
+  gameAuto = null;
+  gameFast = null;
+  gameJump = null;
+  gameJumpButton = null;
+  gameBgmToggle = null;
+  gameFullscreen = null;
+  sceneRecommend = null;
+}
 
-gameFullscreen?.addEventListener("click", () => {
-  const target = document.querySelector("#gamePreview") || gameScreen;
-  if (document.fullscreenElement) {
-    document.exitFullscreen?.();
-  } else {
-    target.requestFullscreen?.();
-  }
-});
+function queryWorkbenchDom() {
+  form = document.querySelector("#pipelineForm");
+  runButton = document.querySelector("#runButton");
+  bookFile = document.querySelector("#bookFile");
+  llmModelInput = document.querySelector("#llmModel");
+  modelOptions = document.querySelectorAll(".model-option");
+  modelHint = document.querySelector("#modelHint");
+  statusText = document.querySelector("#statusText");
+  charactersList = document.querySelector("#characters");
+  scenesList = document.querySelector("#scenes");
+  renpyOutput = document.querySelector("#renpyOutput");
+  jsonOutput = document.querySelector("#jsonOutput");
+  thoughtStatus = document.querySelector("#thoughtStatus");
+  thoughtLog = document.querySelector("#thoughtLog");
+  adapterStatus = document.querySelector("#adapterStatus");
+  gameScreen = document.querySelector("#gameScreen");
+  sceneArt = document.querySelector(".scene-art");
+  gameCounter = document.querySelector("#gameCounter");
+  gameSceneId = document.querySelector("#gameSceneId");
+  gameBgm = document.querySelector("#gameBgm");
+  gameSpeaker = document.querySelector("#gameSpeaker");
+  gameDialogue = document.querySelector("#gameDialogue");
+  choiceList = document.querySelector("#choiceList");
+  characterStandee = document.querySelector("#characterStandee");
+  gamePrev = document.querySelector("#gamePrev");
+  gameNext = document.querySelector("#gameNext");
+  gameAuto = document.querySelector("#gameAuto");
+  gameFast = document.querySelector("#gameFast");
+  gameJump = document.querySelector("#gameJump");
+  gameJumpButton = document.querySelector("#gameJumpButton");
+  gameBgmToggle = document.querySelector("#gameBgmToggle");
+  gameFullscreen = document.querySelector("#gameFullscreen");
+  sceneRecommend = document.querySelector("#sceneRecommend");
+}
 
-bookFile.addEventListener("change", async () => {
-  const file = bookFile.files?.[0];
-  if (!file) return;
-  if (isTextFile(file.name)) {
-    const text = await file.text();
-    document.querySelector("#novelText").value = text;
-    if (!document.querySelector("#title").value.trim()) {
-      document.querySelector("#title").value = titleFromFilename(file.name);
+function initWorkbench() {
+  queryWorkbenchDom();
+  bindRouteLinks(appRoot);
+  gameFrames = [];
+  activeFrameIndex = 0;
+  characterProfilesByName = {};
+  activeVisualStyle = "real";
+  activePovCharacter = "";
+  updateModelHint();
+  loadExternalAssets();
+
+  runButton.addEventListener("click", () => {
+    runPipeline();
+  });
+
+  gamePrev.addEventListener("click", () => {
+    if (activeFrameIndex > 0) {
+      activeFrameIndex -= 1;
+      renderActiveFrame();
     }
-    updateRecommendedScenes(text);
-  } else {
-    updateRecommendedScenes("");
-  }
-});
-
-document.querySelector("#novelText")?.addEventListener("input", (event) => {
-  updateRecommendedScenes(event.target.value || "");
-});
-
-modelOptions.forEach((button) => {
-  button.addEventListener("click", () => {
-    setSelectedModel(button.dataset.model || "deepseek-v4-pro");
   });
-});
 
-document.querySelectorAll(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
-    tab.classList.add("active");
-    const target = tab.dataset.target;
-    renpyOutput.hidden = target !== "renpyOutput";
-    jsonOutput.hidden = target !== "jsonOutput";
+  gameNext.addEventListener("click", () => {
+    if (activeFrameIndex < gameFrames.length - 1) {
+      activeFrameIndex += 1;
+      renderActiveFrame();
+    }
   });
-});
+
+  gameAuto?.addEventListener("click", () => {
+    autoplayEnabled = !autoplayEnabled;
+    gameAuto.classList.toggle("active", autoplayEnabled);
+    if (autoplayEnabled) {
+      scheduleAutoplay();
+    } else {
+      clearTimeout(autoplayTimer);
+    }
+  });
+
+  gameFast?.addEventListener("click", () => {
+    if (!gameFrames.length) return;
+    activeFrameIndex = Math.min(activeFrameIndex + 5, gameFrames.length - 1);
+    renderActiveFrame();
+  });
+
+  gameJumpButton?.addEventListener("click", () => {
+    jumpToFrame(Number.parseInt(gameJump?.value || "1", 10) - 1);
+  });
+
+  gameJump?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      jumpToFrame(Number.parseInt(gameJump.value || "1", 10) - 1);
+    }
+  });
+
+  gameBgmToggle?.addEventListener("click", () => {
+    bgmEnabled = !bgmEnabled;
+    gameBgmToggle.classList.toggle("active", bgmEnabled);
+    updateBgm(gameFrames[activeFrameIndex] || emptyFrame(), true);
+  });
+
+  gameFullscreen?.addEventListener("click", () => {
+    const target = document.querySelector("#gamePreview") || gameScreen;
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    } else {
+      target.requestFullscreen?.();
+    }
+  });
+
+  bookFile.addEventListener("change", async () => {
+    const file = bookFile.files?.[0];
+    if (!file) return;
+    if (isTextFile(file.name)) {
+      const text = await file.text();
+      document.querySelector("#novelText").value = text;
+      if (!document.querySelector("#title").value.trim()) {
+        document.querySelector("#title").value = titleFromFilename(file.name);
+      }
+      updateRecommendedScenes(text);
+    } else {
+      updateRecommendedScenes("");
+    }
+  });
+
+  document.querySelector("#novelText")?.addEventListener("input", (event) => {
+    updateRecommendedScenes(event.target.value || "");
+  });
+
+  modelOptions.forEach((button) => {
+    button.addEventListener("click", () => {
+      setSelectedModel(button.dataset.model || "deepseek-v4-pro");
+    });
+  });
+
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+      tab.classList.add("active");
+      const target = tab.dataset.target;
+      renpyOutput.hidden = target !== "renpyOutput";
+      jsonOutput.hidden = target !== "jsonOutput";
+    });
+  });
+}
+
+window.addEventListener("popstate", () => renderRoute(window.location.pathname));
+renderRoute();
+
+function brandMarkup(extraClass = "") {
+  return `
+    <a class="brand ${extraClass}" href="/" data-route aria-label="Novel2Gal 首页">
+      <span class="brand-mark" aria-hidden="true">
+        <span class="brand-page"></span>
+        <span class="brand-spark"></span>
+      </span>
+      <span class="brand-copy">
+        <strong>Novel2Gal</strong>
+        <small>小说视角改编工作台</small>
+      </span>
+    </a>
+  `;
+}
+
+function landingPageTemplate() {
+  return `
+    <section class="landing-page">
+      <header class="landing-header">
+        ${brandMarkup("brand-light")}
+        <a class="landing-header-action" href="/create" data-route>进入工作台</a>
+      </header>
+      <main class="landing-main" aria-label="Novel2Gal 功能入口">
+        <a class="landing-panel landing-panel-templates" href="/templates" data-route>
+          <span class="panel-glow"></span>
+          <div class="landing-panel-content">
+            <span class="landing-kicker">Examples</span>
+            <h1>模板与案例</h1>
+            <p class="landing-subtitle">浏览不同类型小说的 Galgame 改编效果</p>
+            <p class="landing-copy">校园恋爱、悬疑推理、奇幻冒险、日常治愈等模板。</p>
+            <span class="landing-button">查看案例</span>
+          </div>
+        </a>
+        <a class="landing-panel landing-panel-create featured" href="/create" data-route>
+          <span class="panel-glow"></span>
+          <div class="landing-panel-content">
+            <span class="landing-kicker">Create</span>
+            <h1>开始制作 Galgame</h1>
+            <p class="landing-subtitle">上传小说，选择核心人物视角，生成视觉小说剧本</p>
+            <p class="landing-copy">支持章节分析、角色关系、视角过滤、剧本生成与 Ren'Py 导出。</p>
+            <span class="landing-button primary">立即开始</span>
+          </div>
+        </a>
+        <a class="landing-panel landing-panel-projects" href="/projects" data-route>
+          <span class="panel-glow"></span>
+          <div class="landing-panel-content">
+            <span class="landing-kicker">Projects</span>
+            <h1>我的项目</h1>
+            <p class="landing-subtitle">继续编辑历史作品，管理剧本、场景与导出记录</p>
+            <p class="landing-copy">查看分析进度、修改生成结果、继续导出 Galgame 项目。</p>
+            <span class="landing-button">打开项目</span>
+          </div>
+        </a>
+      </main>
+    </section>
+  `;
+}
+
+function placeholderPageTemplate({ eyebrow, title, text, action, route }) {
+  return `
+    <section class="placeholder-page">
+      <header class="site-header placeholder-header">
+        ${brandMarkup()}
+        <nav class="site-nav" aria-label="主导航">
+          <a href="/" data-route>首页</a>
+          <a href="/templates" data-route>模板与案例</a>
+          <a href="/create" data-route>开始制作</a>
+          <a href="/projects" data-route>我的项目</a>
+        </nav>
+        <a class="header-button" href="/create" data-route>进入工作台</a>
+      </header>
+      <main class="placeholder-main">
+        <section class="placeholder-card">
+          <span>${eyebrow}</span>
+          <h1>${title}</h1>
+          <p>${text}</p>
+          <div class="placeholder-actions">
+            <a href="${route}" data-route>${action}</a>
+            <a class="secondary" href="/" data-route>返回首页</a>
+          </div>
+        </section>
+      </main>
+    </section>
+  `;
+}
+
+function workbenchPageTemplate() {
+  return `
+    <section class="workspace-page">
+      <header class="site-header">
+        ${brandMarkup()}
+        <nav class="site-nav" aria-label="主导航">
+          <a href="/" data-route>首页</a>
+          <a href="/templates" data-route>模板与案例</a>
+          <a href="/create" data-route>制作工作台</a>
+          <a href="/projects" data-route>我的项目</a>
+        </nav>
+        <button id="runButton" type="button">开始制作</button>
+      </header>
+
+      <section id="workspace" class="workspace">
+        <form id="pipelineForm" class="panel input-panel">
+          <div class="field-row">
+            <label for="title">标题</label>
+            <input id="title" name="title" placeholder="可留空，上传 EPUB 时自动读取" />
+          </div>
+          <div class="field-row">
+            <label for="pov">视角</label>
+            <input id="pov" name="pov" placeholder="可留空，自动选择主要人物" />
+          </div>
+          <div class="field-row">
+            <label for="bookFile">文件</label>
+            <input id="bookFile" name="bookFile" type="file" accept=".txt,.md,.markdown,.epub" />
+          </div>
+          <div class="field-row">
+            <label for="maxScenes">改编场景数</label>
+            <input id="maxScenes" name="maxScenes" type="number" min="1" step="1" value="5" />
+          </div>
+          <div id="sceneRecommend" class="recommend-hint">推荐场景数：输入或上传后估算</div>
+          <div class="field-row">
+            <label>模型</label>
+            <div class="model-toggle" role="group" aria-label="DeepSeek 模型选择">
+              <input id="llmModel" name="llmModel" type="hidden" value="deepseek-v4-pro" />
+              <button class="model-option active" type="button" data-model="deepseek-v4-pro">
+                <strong>V4 Pro</strong>
+                <span>质量优先</span>
+              </button>
+              <button class="model-option" type="button" data-model="deepseek-v4-flash">
+                <strong>V4 Flash</strong>
+                <span>速度优先</span>
+              </button>
+            </div>
+          </div>
+          <div id="modelHint" class="model-hint">当前：V4 Pro，质量优先，适合长篇人物关系和复杂分支。</div>
+          <label for="novelText">原文</label>
+          <textarea id="novelText" name="novelText" placeholder="也可以不上传文件，直接把小说正文粘贴到这里。"></textarea>
+        </form>
+
+        <section class="panel summary-panel">
+          <div class="panel-head">
+            <h2>分析</h2>
+            <span id="statusText">ready</span>
+          </div>
+          <div class="summary-grid">
+            <div>
+              <h3>角色</h3>
+              <ul id="characters"></ul>
+            </div>
+            <div>
+              <h3>场景</h3>
+              <ul id="scenes"></ul>
+            </div>
+          </div>
+        </section>
+
+        <section id="gamePreview" class="panel preview-panel">
+          <div class="panel-head">
+            <h2>Galgame</h2>
+            <span id="gameCounter">0 / 0</span>
+          </div>
+          <div id="gameScreen" class="game-screen" data-bg="default">
+            <div class="scene-art" aria-hidden="true">
+              <div class="school-building">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <div id="characterStandee" class="character-standee">林</div>
+            </div>
+            <div class="game-meta">
+              <span id="gameSceneId">未生成</span>
+              <span id="gameBgm">bgm: -</span>
+            </div>
+            <div class="dialogue-box">
+              <div id="gameSpeaker" class="speaker-name">旁白</div>
+              <p id="gameDialogue">运行后会在这里播放改编出的场景。</p>
+              <div id="choiceList" class="choice-list"></div>
+            </div>
+          </div>
+          <div class="game-controls">
+            <button id="gameAuto" type="button" title="自动播放">自动</button>
+            <button id="gameFast" type="button" title="快进 5 页">快进</button>
+            <label class="jump-control" for="gameJump">跳转</label>
+            <input id="gameJump" type="number" min="1" value="1" />
+            <button id="gameJumpButton" type="button" title="跳转到指定页">Go</button>
+            <button id="gameBgmToggle" type="button" title="播放/暂停 BGM">音乐</button>
+            <button id="gameFullscreen" type="button" title="全屏播放">全屏</button>
+            <button id="gamePrev" type="button" title="上一句">←</button>
+            <button id="gameNext" type="button" title="下一句">→</button>
+          </div>
+        </section>
+
+        <section id="thoughtPanel" class="panel thought-panel">
+          <div class="panel-head">
+            <h2>AI思考</h2>
+            <span id="thoughtStatus">idle</span>
+          </div>
+          <div id="adapterStatus" class="adapter-status">改编来源：未运行</div>
+          <ol class="thought-steps">
+            <li data-step="import">读取原文</li>
+            <li data-step="split">章节切分</li>
+            <li data-step="analyze">角色分析</li>
+            <li data-step="pov">视角过滤</li>
+            <li data-step="adapt">剧本生成</li>
+            <li data-step="check">一致性检查</li>
+          </ol>
+          <div id="thoughtLog" class="thought-log">等待运行</div>
+        </section>
+
+        <section class="panel output-panel">
+          <div class="tabs" role="tablist">
+            <button class="tab active" type="button" data-target="renpyOutput">Ren'Py</button>
+            <button class="tab" type="button" data-target="jsonOutput">JSON</button>
+          </div>
+          <pre id="renpyOutput"></pre>
+          <pre id="jsonOutput" hidden></pre>
+        </section>
+      </section>
+    </section>
+  `;
+}
 
 async function runPipeline() {
   const formData = new FormData(form);
@@ -386,7 +741,7 @@ async function loadExternalAssets() {
       portraits: Array.isArray(payload.portraits) ? payload.portraits : [],
       bgm: Array.isArray(payload.bgm) ? payload.bgm : [],
     };
-    renderActiveFrame();
+    if (gameScreen) renderActiveFrame();
   } catch {
     externalAssetCatalog = { backgrounds: [], portraits: [], bgm: [] };
   }
@@ -608,6 +963,7 @@ function emptyFrame() {
 }
 
 function renderActiveFrame() {
+  if (!gameScreen) return;
   const frame = gameFrames[activeFrameIndex] || emptyFrame();
   const hasChoices = (frame.choices || []).length > 0;
   gameScreen.dataset.bg = frame.background || "bg_default";
@@ -984,5 +1340,4 @@ function speakerInitial(speaker) {
   return speaker.trim().slice(0, 1);
 }
 
-renderActiveFrame();
 window.__novel2galBootstrap = "ready";

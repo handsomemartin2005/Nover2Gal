@@ -110,3 +110,10 @@ def image_generation_plan_endpoint(request: ImageGenerationRequest) -> dict:
 @app.post("/api/media/tts/plan")
 def tts_plan_endpoint(request: TTSRequest) -> dict:
     return build_tts_plan(text=request.text, voice=request.voice, settings=Settings.from_env())
+
+
+@app.get("/{full_path:path}")
+def frontend_spa_fallback(full_path: str) -> FileResponse:
+    if full_path.startswith(("api/", "static/")):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(FRONTEND_DIR / "index.html")
