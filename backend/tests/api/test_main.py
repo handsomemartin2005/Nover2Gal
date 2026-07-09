@@ -239,6 +239,8 @@ class MainAPITest(unittest.TestCase):
                 payload = status_response.json()
                 self.assertEqual(payload["status"], "done")
                 self.assertGreaterEqual(payload["completed_chapters"], 1)
+                self.assertGreaterEqual(payload["result"]["stats"]["adaptation_scenes"], 1)
+                self.assertTrue(payload["result"]["adaptation_scenes"])
                 self.assertIn("renpy", payload["result"]["exports"])
                 self.assertEqual(list_response.status_code, 200)
                 self.assertTrue(list_response.json()["projects"])

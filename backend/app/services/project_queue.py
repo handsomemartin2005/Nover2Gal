@@ -102,6 +102,10 @@ def run_project(project_id: str) -> None:
                 llm_model=project.get("llm_model") or None,
             )
             payload = to_api_payload(result)
+            chapter_source_scenes = payload.get("source_scenes", [])
+            chapter_source_chunks = payload.get("source_chunks", [])
+            chapter_adaptation_scenes = payload.get("adaptation_scenes", [])
+            chapter_reports = payload.get("consistency_reports", [])
             used_scenes += payload["stats"]["adaptation_scenes"]
             if merged_result is None:
                 merged_result = payload
@@ -111,10 +115,10 @@ def run_project(project_id: str) -> None:
                 merged_result["adaptation_scenes"] = []
                 merged_result["consistency_reports"] = []
                 merged_result["exports"] = {"markdown": "", "renpy": ""}
-            source_scenes.extend(payload.get("source_scenes", []))
-            source_chunks.extend(payload.get("source_chunks", []))
-            adaptation_scenes.extend(payload.get("adaptation_scenes", []))
-            consistency_reports.extend(payload.get("consistency_reports", []))
+            source_scenes.extend(chapter_source_scenes)
+            source_chunks.extend(chapter_source_chunks)
+            adaptation_scenes.extend(chapter_adaptation_scenes)
+            consistency_reports.extend(chapter_reports)
             renpy_parts.append(payload.get("exports", {}).get("renpy", ""))
             markdown_parts.append(payload.get("exports", {}).get("markdown", ""))
             _mark_chapter(project_id, chapter.index, "done")
