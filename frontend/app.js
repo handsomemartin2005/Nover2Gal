@@ -193,24 +193,12 @@ function renderRoute(path = window.location.pathname) {
     return;
   }
   if (path === "/templates") {
-    appRoot.innerHTML = placeholderPageTemplate({
-      eyebrow: "Templates",
-      title: "模板与案例",
-      text: "这里会展示校园恋爱、悬疑推理、奇幻冒险、日常治愈等小说改编案例。",
-      action: "开始制作",
-      route: "/create",
-    });
+    appRoot.innerHTML = templatesPageTemplate();
     bindRouteLinks(appRoot);
     return;
   }
   if (path === "/projects") {
-    appRoot.innerHTML = placeholderPageTemplate({
-      eyebrow: "Projects",
-      title: "我的项目",
-      text: "这里会管理历史作品、分析进度、剧本版本、场景素材和导出记录。",
-      action: "新建 Galgame",
-      route: "/create",
-    });
+    appRoot.innerHTML = projectsPageTemplate();
     bindRouteLinks(appRoot);
     return;
   }
@@ -456,28 +444,87 @@ function landingPageTemplate() {
   `;
 }
 
-function placeholderPageTemplate({ eyebrow, title, text, action, route }) {
+function animeHeaderMarkup(activePath = "/") {
   return `
-    <section class="placeholder-page">
-      <header class="site-header placeholder-header">
-        ${brandMarkup()}
-        <nav class="site-nav" aria-label="主导航">
-          <a href="/" data-route>首页</a>
-          <a href="/templates" data-route>模板与案例</a>
-          <a href="/create" data-route>开始制作</a>
-          <a href="/projects" data-route>我的项目</a>
-        </nav>
-        <a class="header-button" href="/create" data-route>进入工作台</a>
-      </header>
-      <main class="placeholder-main">
-        <section class="placeholder-card">
-          <span>${eyebrow}</span>
-          <h1>${title}</h1>
-          <p>${text}</p>
-          <div class="placeholder-actions">
-            <a href="${route}" data-route>${action}</a>
-            <a class="secondary" href="/" data-route>返回首页</a>
+    <header class="site-header anime-header">
+      ${brandMarkup()}
+      <nav class="site-nav" aria-label="主导航">
+        <a class="${activePath === "/" ? "active" : ""}" href="/" data-route>首页</a>
+        <a class="${activePath === "/templates" ? "active" : ""}" href="/templates" data-route>模板与案例</a>
+        <a class="${activePath === "/create" ? "active" : ""}" href="/create" data-route>开始制作</a>
+        <a class="${activePath === "/projects" ? "active" : ""}" href="/projects" data-route>我的项目</a>
+      </nav>
+      <a class="header-button anime-button anime-button--primary" href="/create" data-route>进入工作台</a>
+    </header>
+  `;
+}
+
+function templatesPageTemplate() {
+  const categories = ["全部", "校园恋爱", "悬疑推理", "奇幻冒险", "日常治愈", "我的样例"];
+  const samples = [
+    ["校园恋爱", "天台告白练习", "核心视角：转学生 · 12 Scenes", "轻小说校园分支演出模板"],
+    ["悬疑推理", "旧教学楼的录音笔", "核心视角：调查者 · 9 Scenes", "线索、误导与回收结构样例"],
+    ["日常治愈", "雨后便利店", "核心视角：店员 · 7 Scenes", "慢节奏对话与关系推进样例"],
+  ];
+  return `
+    <section class="anime-app library-page templates-page">
+      ${animeHeaderMarkup("/templates")}
+      <main class="library-main">
+        <section class="page-hero glass-panel">
+          <span class="status-badge">Templates</span>
+          <h1>模板与案例</h1>
+          <p>浏览不同类型小说的 Galgame 改编效果。之后保存为样例的项目，也会沉淀到这里复用。</p>
+          <div class="filter-row">
+            ${categories.map((item, index) => `<button class="anime-button ${index === 0 ? "anime-button--primary" : "anime-button--ghost"}" type="button">${item}</button>`).join("")}
           </div>
+        </section>
+        <section class="card-grid sample-grid">
+          ${samples.map(([tag, title, meta, copy], index) => `
+            <article class="template-card glass-panel template-card-${index + 1}">
+              <div class="template-cover"></div>
+              <div class="template-body">
+                <span class="status-badge">${tag}</span>
+                <h2>${title}</h2>
+                <p>${copy}</p>
+                <small>${meta}</small>
+                <div class="card-actions">
+                  <button class="anime-button anime-button--ghost" type="button">预览</button>
+                  <a class="anime-button anime-button--primary" href="/create" data-route>使用此样例</a>
+                </div>
+              </div>
+            </article>
+          `).join("")}
+        </section>
+      </main>
+    </section>
+  `;
+}
+
+function projectsPageTemplate() {
+  return `
+    <section class="anime-app library-page projects-page">
+      ${animeHeaderMarkup("/projects")}
+      <main class="library-main">
+        <section class="page-hero glass-panel">
+          <span class="status-badge">Projects</span>
+          <h1>我的项目</h1>
+          <p>继续编辑你的 Galgame 改编工程。项目持久化接入后，这里会显示历史作品、生成状态和导出记录。</p>
+          <div class="hero-actions">
+            <a class="anime-button anime-button--primary" href="/create" data-route>新建 Galgame</a>
+            <button class="anime-button anime-button--ghost" type="button">导入项目 JSON</button>
+            <a class="anime-button anime-button--ghost" href="/" data-route>返回首页</a>
+          </div>
+        </section>
+        <section class="glass-panel empty-project-panel">
+          <div class="empty-archive-visual" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span class="status-badge">Project Archive</span>
+          <h2>还没有保存的项目</h2>
+          <p>下一阶段会接入后端项目保存与恢复。现在可以先进入工作台上传小说，生成你的第一部 Galgame。</p>
+          <a class="anime-button anime-button--primary" href="/create" data-route>开始制作</a>
         </section>
       </main>
     </section>
@@ -486,13 +533,13 @@ function placeholderPageTemplate({ eyebrow, title, text, action, route }) {
 
 function workbenchPageTemplate() {
   return `
-    <section class="workspace-page">
-      <header class="site-header">
+    <section class="workspace-page anime-app">
+      <header class="site-header anime-header">
         ${brandMarkup()}
         <nav class="site-nav" aria-label="主导航">
           <a href="/" data-route>首页</a>
           <a href="/templates" data-route>模板与案例</a>
-          <a href="/create" data-route>制作工作台</a>
+          <a class="active" href="/create" data-route>制作工作台</a>
           <a href="/projects" data-route>我的项目</a>
         </nav>
         <button id="runButton" type="button">开始制作</button>
@@ -500,20 +547,24 @@ function workbenchPageTemplate() {
 
       <section id="workspace" class="workspace">
         <form id="pipelineForm" class="panel input-panel">
+          <div class="studio-panel-title">
+            <span class="status-badge">Project Setup</span>
+            <h2>企划设定</h2>
+          </div>
           <div class="field-row">
-            <label for="title">标题</label>
+            <label for="title">企划名称</label>
             <input id="title" name="title" placeholder="可留空，上传 EPUB 时自动读取" />
           </div>
           <div class="field-row">
-            <label for="pov">视角</label>
+            <label for="pov">核心视角</label>
             <input id="pov" name="pov" placeholder="可留空，自动选择主要人物" />
           </div>
           <div class="field-row">
-            <label for="bookFile">文件</label>
+            <label for="bookFile">原作导入</label>
             <input id="bookFile" name="bookFile" type="file" accept=".txt,.md,.markdown,.epub" />
           </div>
           <div class="field-row">
-            <label for="maxScenes">改编场景数</label>
+            <label for="maxScenes">场景数</label>
             <input id="maxScenes" name="maxScenes" type="number" min="1" step="1" value="5" />
           </div>
           <div id="sceneRecommend" class="recommend-hint">推荐场景数：输入或上传后估算</div>
@@ -532,13 +583,13 @@ function workbenchPageTemplate() {
             </div>
           </div>
           <div id="modelHint" class="model-hint">当前：V4 Pro，质量优先，适合长篇人物关系和复杂分支。</div>
-          <label for="novelText">原文</label>
+          <label for="novelText">原作正文</label>
           <textarea id="novelText" name="novelText" placeholder="也可以不上传文件，直接把小说正文粘贴到这里。"></textarea>
         </form>
 
         <section class="panel summary-panel">
           <div class="panel-head">
-            <h2>分析</h2>
+            <h2>剧情记忆</h2>
             <span id="statusText">ready</span>
           </div>
           <div class="summary-grid">
@@ -590,7 +641,7 @@ function workbenchPageTemplate() {
 
         <section id="thoughtPanel" class="panel thought-panel">
           <div class="panel-head">
-            <h2>AI思考</h2>
+            <h2>生成日志</h2>
             <span id="thoughtStatus">idle</span>
           </div>
           <div id="adapterStatus" class="adapter-status">改编来源：未运行</div>
