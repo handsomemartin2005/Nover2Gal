@@ -230,6 +230,12 @@ class MainAPITest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 413)
 
+    @patch.dict("os.environ", {"MAX_PIPELINE_PROCESS_CHARS": "12"})
+    def test_pipeline_text_is_trimmed_for_processing(self):
+        from app.main import _prepare_pipeline_text
+
+        self.assertEqual(_prepare_pipeline_text("0123456789abcdef"), "0123456789ab")
+
     def test_media_provider_and_plan_endpoints(self):
         client = TestClient(app)
 

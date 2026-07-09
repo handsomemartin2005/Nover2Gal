@@ -72,6 +72,7 @@ MAX_CHUNK_CHARS=1500
 CHUNK_OVERLAP_CHARS=200
 MAX_UPLOAD_BYTES=26214400
 MAX_PIPELINE_TEXT_CHARS=1200000
+MAX_PIPELINE_PROCESS_CHARS=120000
 EOF
 fi
 
@@ -81,6 +82,10 @@ fi
 
 if ! grep -q '^MAX_PIPELINE_TEXT_CHARS=' /etc/novel2gal.env; then
   echo 'MAX_PIPELINE_TEXT_CHARS=1200000' >> /etc/novel2gal.env
+fi
+
+if ! grep -q '^MAX_PIPELINE_PROCESS_CHARS=' /etc/novel2gal.env; then
+  echo 'MAX_PIPELINE_PROCESS_CHARS=120000' >> /etc/novel2gal.env
 fi
 
 if ! grep -q '^DEEPSEEK_API=.\+' /etc/novel2gal.env; then

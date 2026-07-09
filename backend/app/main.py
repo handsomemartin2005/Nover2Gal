@@ -45,6 +45,7 @@ FRONTEND_DIR = PROJECT_ROOT / "frontend"
 SPA_ROUTES = {"create", "templates", "projects"}
 DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 DEFAULT_MAX_PIPELINE_TEXT_CHARS = 1_200_000
+DEFAULT_MAX_PIPELINE_PROCESS_CHARS = 120_000
 PIPELINE_JOBS: dict[str, dict] = {}
 PIPELINE_JOB_LOCK = threading.Lock()
 
@@ -65,9 +66,10 @@ def frontend_index() -> FileResponse:
 @app.post("/api/pipeline/run")
 def run_pipeline_endpoint(request: PipelineRunRequest) -> dict:
     _validate_text_size(request.text)
+    text = _prepare_pipeline_text(request.text)
     result = run_pipeline(
         request.title,
-        request.text,
+        text,
         request.pov_character,
         max_scenes=request.max_scenes,
         llm_model=request.llm_model,
@@ -78,12 +80,13 @@ def run_pipeline_endpoint(request: PipelineRunRequest) -> dict:
 @app.post("/api/pipeline/run/jobs")
 def run_pipeline_job_endpoint(request: PipelineRunRequest, background_tasks: BackgroundTasks) -> dict:
     _validate_text_size(request.text)
+    text = _prepare_pipeline_text(request.text)
     job_id = _create_pipeline_job(title=request.title)
     background_tasks.add_task(
         _execute_pipeline_job,
         job_id,
         request.title,
-        request.text,
+        text,
         request.pov_character,
         request.max_scenes,
         request.llm_model,
@@ -105,10 +108,11 @@ async def upload_pipeline_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     _validate_text_size(document.text)
+    text = _prepare_pipeline_text(document.text)
     result = await anyio.to_thread.run_sync(
         lambda: run_pipeline(
             title or document.title,
-            document.text,
+            text,
             pov_character,
             max_scenes=max_scenes,
             llm_model=_validate_upload_model(llm_model),
@@ -132,13 +136,14 @@ async def upload_pipeline_job_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     _validate_text_size(document.text)
+    text = _prepare_pipeline_text(document.text)
     normalized_model = _validate_upload_model(llm_model)
     job_id = _create_pipeline_job(title=title or document.title)
     background_tasks.add_task(
         _execute_pipeline_job,
         job_id,
         title or document.title,
-        document.text,
+        text,
         pov_character,
         max_scenes,
         normalized_model,
@@ -266,6 +271,13 @@ def _validate_text_size(text: str) -> None:
             status_code=413,
             detail=f"Novel text is too large for this server. Limit is {max_chars} characters.",
         )
+
+
+def _prepare_pipeline_text(text: str) -> str:
+    max_chars = _env_int("MAX_PIPELINE_PROCESS_CHARS", DEFAULT_MAX_PIPELINE_PROCESS_CHARS)
+    if max_chars <= 0 or len(text) <= max_chars:
+        return text
+    return text[:max_chars].rstrip()
 
 
 def _env_int(name: str, default: int) -> int:
