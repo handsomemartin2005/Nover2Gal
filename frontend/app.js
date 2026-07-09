@@ -775,10 +775,11 @@ function renderStage(frame) {
     node.setAttribute("aria-label", prop);
     sceneArt.appendChild(node);
   });
+  const usedPortraits = new Set();
   (stage.characters || ["protagonist"]).slice(0, 4).forEach((name, index) => {
     const node = document.createElement("div");
     node.className = `stage-character character-slot-${index}`;
-    node.style.backgroundImage = `linear-gradient(180deg, rgba(20, 24, 34, 0), rgba(20, 24, 34, 0.52)), url("${characterPortrait(name, index)}")`;
+    node.style.backgroundImage = `linear-gradient(180deg, rgba(20, 24, 34, 0), rgba(20, 24, 34, 0.52)), url("${characterPortrait(name, index, usedPortraits)}")`;
     node.innerHTML = `<span>${displayCharacterName(name)}</span>`;
     sceneArt.appendChild(node);
   });
@@ -848,13 +849,23 @@ function defaultStage(background) {
   return { location: "generic", props: ["floor"], characters: ["protagonist"] };
 }
 
-function characterPortrait(name, index) {
+function characterPortrait(name, index, usedPortraits = new Set()) {
   const bucket = portraitBucket(name);
   if (bucket.length) {
-    return bucket[Math.abs(stableHash(String(name || "protagonist")) + index) % bucket.length];
+    const start = Math.abs(stableHash(String(name || "protagonist")) + index) % bucket.length;
+    for (let offset = 0; offset < bucket.length; offset += 1) {
+      const url = bucket[(start + offset) % bucket.length];
+      if (!usedPortraits.has(url)) {
+        usedPortraits.add(url);
+        return url;
+      }
+    }
+    return bucket[start];
   }
   const seed = [...String(name || "protagonist")].reduce((sum, char) => sum + char.charCodeAt(0), index);
-  return CHARACTER_PORTRAITS[Math.abs(seed) % CHARACTER_PORTRAITS.length];
+  const fallback = CHARACTER_PORTRAITS[Math.abs(seed) % CHARACTER_PORTRAITS.length];
+  usedPortraits.add(fallback);
+  return fallback;
 }
 
 function portraitBucket(name) {
@@ -881,11 +892,21 @@ function externalPortraitBucket(notes, isAnime) {
   const age = String(notes.age || "").toLowerCase();
   const candidates = (externalAssetCatalog.portraits || []).filter((asset) => {
     if (asset.style !== wantedStyle) return false;
+    if (isAnime && !isPlayableAnimePortrait(asset)) return false;
     if (gender !== "unknown" && asset.gender && asset.gender !== gender) return false;
     if (age && asset.age && asset.age !== age && !(age === "young" && asset.age === "adult")) return false;
     return true;
   });
   return candidates.map((asset) => asset.url);
+}
+
+function isPlayableAnimePortrait(asset) {
+  const tags = asset.tags || [];
+  const url = String(asset.url || "").toLowerCase();
+  const id = String(asset.id || "").toLowerCase();
+  if (tags.includes("standing")) return true;
+  if (id.includes("_stand")) return true;
+  return url.endsWith(".png") && !url.includes("syoukai");
 }
 
 function propImage(prop) {

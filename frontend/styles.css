@@ -403,6 +403,14 @@ li {
   display: block;
 }
 
+.scene-art.asset-backed .school-building {
+  display: none;
+}
+
+.scene-art.asset-backed .stage-prop:not(.prop-image) {
+  display: none;
+}
+
 .stage-prop {
   position: absolute;
   z-index: 1;

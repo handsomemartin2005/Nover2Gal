@@ -97,11 +97,16 @@ class MainAPITest(unittest.TestCase):
         self.assertIn("llm_model", script_response.text)
         self.assertIn("loadExternalAssets", script_response.text)
         self.assertIn("scheduleAutoplay", script_response.text)
+        self.assertIn("isPlayableAnimePortrait", script_response.text)
+        self.assertIn("usedPortraits", script_response.text)
         self.assertIn('button.textContent = choice.text || "选择"', script_response.text)
         self.assertNotIn("`${choice.text} ·", script_response.text)
         self.assertIn("/api/pipeline/upload", script_response.text)
         self.assertNotIn("原书主线", script_response.text)
         self.assertNotIn("关键事件", script_response.text)
+        css_response = client.get("/static/styles.css")
+        self.assertEqual(css_response.status_code, 200)
+        self.assertIn(".scene-art.asset-backed .stage-prop:not(.prop-image)", css_response.text)
 
     @patch.dict("os.environ", {"DEEPSEEK_API": "", "LLM_API_KEY": ""})
     def test_pipeline_upload_endpoint_accepts_epub(self):
