@@ -123,6 +123,8 @@ class MainAPITest(unittest.TestCase):
         self.assertIn('button.textContent = choice.text || "选择"', script_response.text)
         self.assertNotIn("`${choice.text} ·", script_response.text)
         self.assertIn("/api/pipeline/upload", script_response.text)
+        self.assertIn("/api/pipeline/upload/jobs", script_response.text)
+        self.assertIn("/api/pipeline/jobs/", script_response.text)
         self.assertNotIn("原书主线", script_response.text)
         self.assertNotIn("关键事件", script_response.text)
         css_response = client.get("/static/styles.css")
@@ -176,6 +178,34 @@ class MainAPITest(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 422)
+
+    @patch.dict("os.environ", {"DEEPSEEK_API": "", "LLM_API_KEY": ""})
+    def test_pipeline_upload_job_endpoint_accepts_epub(self):
+        import tempfile
+        from pathlib import Path
+
+        client = TestClient(app)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.epub"
+            write_sample_epub(path)
+
+            with path.open("rb") as file:
+                response = client.post(
+                    "/api/pipeline/upload/jobs",
+                    data={"pov_character": "鏋楅洦", "llm_model": "deepseek-v4-flash"},
+                    files={"file": ("sample.epub", file, "application/epub+zip")},
+                )
+
+        self.assertEqual(response.status_code, 200)
+        job = response.json()
+        self.assertIn(job["status"], {"queued", "running", "done"})
+
+        status_response = client.get(f"/api/pipeline/jobs/{job['job_id']}")
+
+        self.assertEqual(status_response.status_code, 200)
+        status_payload = status_response.json()
+        self.assertEqual(status_payload["status"], "done")
+        self.assertIn("renpy", status_payload["result"]["exports"])
 
     def test_spa_fallback_only_allows_known_frontend_routes(self):
         client = TestClient(app)

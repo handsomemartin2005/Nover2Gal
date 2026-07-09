@@ -679,12 +679,15 @@ async function runPipeline() {
 
   try {
     const response = file && file.name.toLowerCase().endsWith(".epub")
-      ? await runUploadedFile(formData, file)
-      : await runTextInput(formData);
+      ? await runUploadedFileJob(formData, file)
+      : await runTextInputJob(formData);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
-    const result = await response.json();
+    const payload = await response.json();
+    const result = payload.result
+      ? payload.result
+      : await waitForPipelineJob(payload.job_id);
     await completeThinkingProgress(result);
     renderResult(result);
     statusText.textContent = "done";
@@ -713,6 +716,22 @@ async function runTextInput(formData) {
   });
 }
 
+async function runTextInputJob(formData) {
+  const payload = {
+    title: formData.get("title") || "Untitled Novel",
+    pov_character: formData.get("pov"),
+    text: formData.get("novelText"),
+    llm_model: selectedModel(),
+  };
+  const maxScenes = parseMaxScenes(formData.get("maxScenes"));
+  if (maxScenes) payload.max_scenes = maxScenes;
+  return fetch("/api/pipeline/run/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 async function runUploadedFile(formData, file) {
   const payload = new FormData();
   payload.append("file", file);
@@ -726,6 +745,65 @@ async function runUploadedFile(formData, file) {
     method: "POST",
     body: payload,
   });
+}
+
+async function runUploadedFileJob(formData, file) {
+  const payload = new FormData();
+  payload.append("file", file);
+  payload.append("pov_character", formData.get("pov"));
+  payload.append("llm_model", selectedModel());
+  const maxScenes = parseMaxScenes(formData.get("maxScenes"));
+  if (maxScenes) payload.append("max_scenes", String(maxScenes));
+  const title = formData.get("title");
+  if (title) payload.append("title", title);
+  return fetch("/api/pipeline/upload/jobs", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+async function waitForPipelineJob(jobId) {
+  if (!jobId) {
+    throw new Error("Missing pipeline job id");
+  }
+  let lastStatus = "";
+  for (;;) {
+    const response = await fetch(`/api/pipeline/jobs/${encodeURIComponent(jobId)}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    if (payload.status !== lastStatus) {
+      lastStatus = payload.status;
+      updateJobThinkingProgress(payload);
+    }
+    if (payload.status === "done" && payload.result) {
+      return payload.result;
+    }
+    if (payload.status === "failed") {
+      throw new Error(payload.error || "Pipeline job failed");
+    }
+    await delay(2000);
+  }
+}
+
+function updateJobThinkingProgress(payload) {
+  if (!thoughtLog) return;
+  if (payload.status === "queued") {
+    updateThinkingStep("read", "active", `已提交任务 ${payload.job_id}，等待后端开始处理。`);
+    return;
+  }
+  if (payload.status === "running") {
+    updateThinkingStep("adapt", "active", `任务 ${payload.job_id} 正在后台生成，长篇小说可能需要几分钟。`);
+    return;
+  }
+  if (payload.status === "done") {
+    updateThinkingStep("check", "done", `任务 ${payload.job_id} 已完成。`);
+  }
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function renderResult(result) {

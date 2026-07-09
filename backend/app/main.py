@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import threading
+import time
 from typing import Literal
+from uuid import uuid4
 
 import anyio
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -42,6 +45,8 @@ FRONTEND_DIR = PROJECT_ROOT / "frontend"
 SPA_ROUTES = {"create", "templates", "projects"}
 DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 DEFAULT_MAX_PIPELINE_TEXT_CHARS = 1_200_000
+PIPELINE_JOBS: dict[str, dict] = {}
+PIPELINE_JOB_LOCK = threading.Lock()
 
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -70,6 +75,22 @@ def run_pipeline_endpoint(request: PipelineRunRequest) -> dict:
     return to_api_payload(result)
 
 
+@app.post("/api/pipeline/run/jobs")
+def run_pipeline_job_endpoint(request: PipelineRunRequest, background_tasks: BackgroundTasks) -> dict:
+    _validate_text_size(request.text)
+    job_id = _create_pipeline_job(title=request.title)
+    background_tasks.add_task(
+        _execute_pipeline_job,
+        job_id,
+        request.title,
+        request.text,
+        request.pov_character,
+        request.max_scenes,
+        request.llm_model,
+    )
+    return _job_public_payload(job_id)
+
+
 @app.post("/api/pipeline/upload")
 async def upload_pipeline_endpoint(
     pov_character: str = Form(""),
@@ -96,12 +117,128 @@ async def upload_pipeline_endpoint(
     return to_api_payload(result)
 
 
+@app.post("/api/pipeline/upload/jobs")
+async def upload_pipeline_job_endpoint(
+    background_tasks: BackgroundTasks,
+    pov_character: str = Form(""),
+    file: UploadFile = File(...),
+    title: str | None = Form(None),
+    max_scenes: int | None = Form(None),
+    llm_model: str | None = Form(None),
+) -> dict:
+    content = await _read_upload_file(file)
+    try:
+        document = import_document_bytes(file.filename or "document", content)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _validate_text_size(document.text)
+    normalized_model = _validate_upload_model(llm_model)
+    job_id = _create_pipeline_job(title=title or document.title)
+    background_tasks.add_task(
+        _execute_pipeline_job,
+        job_id,
+        title or document.title,
+        document.text,
+        pov_character,
+        max_scenes,
+        normalized_model,
+    )
+    return _job_public_payload(job_id)
+
+
+@app.get("/api/pipeline/jobs/{job_id}")
+def pipeline_job_status_endpoint(job_id: str) -> dict:
+    return _job_public_payload(job_id)
+
+
 def _validate_upload_model(value: str | None) -> str | None:
     if value in (None, ""):
         return None
     if value not in {"deepseek-v4-pro", "deepseek-v4-flash"}:
         raise HTTPException(status_code=422, detail="Unsupported llm_model")
     return value
+
+
+def _create_pipeline_job(title: str) -> str:
+    job_id = uuid4().hex
+    now = time.time()
+    with PIPELINE_JOB_LOCK:
+        _trim_pipeline_jobs()
+        PIPELINE_JOBS[job_id] = {
+            "job_id": job_id,
+            "title": title,
+            "status": "queued",
+            "created_at": now,
+            "updated_at": now,
+            "error": "",
+            "result": None,
+        }
+    return job_id
+
+
+def _execute_pipeline_job(
+    job_id: str,
+    title: str,
+    text: str,
+    pov_character: str,
+    max_scenes: int | None,
+    llm_model: str | None,
+) -> None:
+    _update_pipeline_job(job_id, status="running")
+    try:
+        result = run_pipeline(
+            title,
+            text,
+            pov_character,
+            max_scenes=max_scenes,
+            llm_model=llm_model,
+        )
+        _update_pipeline_job(job_id, status="done", result=to_api_payload(result))
+    except Exception as exc:
+        _update_pipeline_job(job_id, status="failed", error=str(exc))
+
+
+def _update_pipeline_job(
+    job_id: str,
+    *,
+    status: str,
+    result: dict | None = None,
+    error: str = "",
+) -> None:
+    with PIPELINE_JOB_LOCK:
+        job = PIPELINE_JOBS.get(job_id)
+        if not job:
+            return
+        job["status"] = status
+        job["updated_at"] = time.time()
+        if result is not None:
+            job["result"] = result
+        if error:
+            job["error"] = error
+
+
+def _job_public_payload(job_id: str) -> dict:
+    with PIPELINE_JOB_LOCK:
+        job = PIPELINE_JOBS.get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Pipeline job not found")
+        return {
+            "job_id": job["job_id"],
+            "title": job["title"],
+            "status": job["status"],
+            "created_at": job["created_at"],
+            "updated_at": job["updated_at"],
+            "error": job["error"],
+            "result": job["result"],
+        }
+
+
+def _trim_pipeline_jobs(max_jobs: int = 20) -> None:
+    if len(PIPELINE_JOBS) < max_jobs:
+        return
+    removable = sorted(PIPELINE_JOBS.values(), key=lambda item: item["updated_at"])
+    for job in removable[: max(1, len(PIPELINE_JOBS) - max_jobs + 1)]:
+        PIPELINE_JOBS.pop(job["job_id"], None)
 
 
 async def _read_upload_file(file: UploadFile) -> bytes:
