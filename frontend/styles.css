@@ -716,6 +716,20 @@ button {
   gap: 10px;
 }
 
+.full-book-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.full-book-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
 label,
 h3 {
   font-size: 13px;

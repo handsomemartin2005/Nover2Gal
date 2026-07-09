@@ -567,6 +567,10 @@ function workbenchPageTemplate() {
             <label for="maxScenes">场景数</label>
             <input id="maxScenes" name="maxScenes" type="number" min="1" step="1" value="5" />
           </div>
+          <label class="full-book-toggle">
+            <input id="fullBookMode" name="fullBookMode" type="checkbox" checked />
+            EPUB 全书分章生成
+          </label>
           <div id="sceneRecommend" class="recommend-hint">推荐场景数：输入或上传后估算</div>
           <div class="field-row">
             <label>模型</label>
@@ -679,15 +683,17 @@ async function runPipeline() {
 
   try {
     const response = file && file.name.toLowerCase().endsWith(".epub")
-      ? await runUploadedFileJob(formData, file)
+      ? await runUploadedProject(formData, file)
       : await runTextInputJob(formData);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
     const payload = await response.json();
-    const result = payload.result
-      ? payload.result
-      : await waitForPipelineJob(payload.job_id);
+    const result = payload.project_id
+      ? await waitForProject(payload.project_id)
+      : payload.result
+        ? payload.result
+        : await waitForPipelineJob(payload.job_id);
     await completeThinkingProgress(result);
     renderResult(result);
     statusText.textContent = "done";
@@ -752,7 +758,8 @@ async function runUploadedFileJob(formData, file) {
   payload.append("file", file);
   payload.append("pov_character", formData.get("pov"));
   payload.append("llm_model", selectedModel());
-  const maxScenes = parseMaxScenes(formData.get("maxScenes"));
+  const fullBookMode = Boolean(document.querySelector("#fullBookMode")?.checked);
+  const maxScenes = fullBookMode ? null : parseMaxScenes(formData.get("maxScenes"));
   if (maxScenes) payload.append("max_scenes", String(maxScenes));
   const title = formData.get("title");
   if (title) payload.append("title", title);
@@ -760,6 +767,66 @@ async function runUploadedFileJob(formData, file) {
     method: "POST",
     body: payload,
   });
+}
+
+async function runUploadedProject(formData, file) {
+  const payload = new FormData();
+  payload.append("file", file);
+  payload.append("pov_character", formData.get("pov"));
+  payload.append("llm_model", selectedModel());
+  const fullBookMode = Boolean(document.querySelector("#fullBookMode")?.checked);
+  const maxScenes = fullBookMode ? null : parseMaxScenes(formData.get("maxScenes"));
+  if (maxScenes) payload.append("max_scenes", String(maxScenes));
+  const title = formData.get("title");
+  if (title) payload.append("title", title);
+  return fetch("/api/projects/upload", {
+    method: "POST",
+    body: payload,
+  });
+}
+
+async function waitForProject(projectId) {
+  if (!projectId) {
+    throw new Error("Missing project id");
+  }
+  let lastProgress = "";
+  for (;;) {
+    const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    const progress = `${payload.status}:${payload.completed_chapters}/${payload.total_chapters}:${payload.current_chapter}`;
+    if (progress !== lastProgress) {
+      lastProgress = progress;
+      updateProjectThinkingProgress(payload);
+    }
+    if (payload.status === "done" && payload.result) {
+      return payload.result;
+    }
+    if (payload.status === "failed") {
+      throw new Error(payload.error || "Project generation failed");
+    }
+    await delay(2500);
+  }
+}
+
+function updateProjectThinkingProgress(payload) {
+  if (!thoughtLog) return;
+  const done = payload.completed_chapters || 0;
+  const total = payload.total_chapters || 0;
+  if (payload.status === "queued") {
+    updateThinkingStep("read", "active", `已创建项目 ${payload.project_id}，等待分章任务开始。`);
+    return;
+  }
+  if (payload.status === "running") {
+    const chapter = payload.current_chapter ? `，当前：${payload.current_chapter}` : "";
+    updateThinkingStep("adapt", "active", `分章生成中：${done}/${total}${chapter}`);
+    return;
+  }
+  if (payload.status === "done") {
+    updateThinkingStep("check", "done", `项目已完成：${done}/${total} 章。`);
+  }
 }
 
 async function waitForPipelineJob(jobId) {

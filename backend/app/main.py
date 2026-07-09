@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from app.importers.document_importer import import_document_bytes
 from app.core.config import Settings
 from app.media.providers import build_image_generation_plan, build_tts_plan, provider_status
+from app.services.project_queue import create_project_from_upload, list_projects, public_project_payload, run_project
 from app.services.novel_pipeline import run_pipeline
 from app.schemas.story import to_api_payload
 
@@ -154,6 +155,44 @@ async def upload_pipeline_job_endpoint(
 @app.get("/api/pipeline/jobs/{job_id}")
 def pipeline_job_status_endpoint(job_id: str) -> dict:
     return _job_public_payload(job_id)
+
+
+@app.post("/api/projects/upload")
+async def upload_project_endpoint(
+    background_tasks: BackgroundTasks,
+    pov_character: str = Form(""),
+    file: UploadFile = File(...),
+    title: str | None = Form(None),
+    max_scenes: int | None = Form(None),
+    llm_model: str | None = Form(None),
+) -> dict:
+    content = await _read_upload_file(file)
+    try:
+        project = create_project_from_upload(
+            file.filename or "document",
+            content,
+            title=title,
+            pov_character=pov_character,
+            max_scenes=max_scenes,
+            llm_model=_validate_upload_model(llm_model),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    background_tasks.add_task(run_project, project["project_id"])
+    return project
+
+
+@app.get("/api/projects")
+def list_projects_endpoint() -> dict:
+    return {"projects": list_projects()}
+
+
+@app.get("/api/projects/{project_id}")
+def project_status_endpoint(project_id: str) -> dict:
+    try:
+        return public_project_payload(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
 
 
 def _validate_upload_model(value: str | None) -> str | None:

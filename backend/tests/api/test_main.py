@@ -94,6 +94,7 @@ class MainAPITest(unittest.TestCase):
         self.assertIn('id="thoughtPanel"', script_response.text)
         self.assertIn('id="adapterStatus"', script_response.text)
         self.assertIn('id="maxScenes"', script_response.text)
+        self.assertIn('id="fullBookMode"', script_response.text)
         self.assertIn('id="llmModel"', script_response.text)
         self.assertIn('id="modelHint"', script_response.text)
         self.assertIn("质量优先", script_response.text)
@@ -125,6 +126,8 @@ class MainAPITest(unittest.TestCase):
         self.assertIn("/api/pipeline/upload", script_response.text)
         self.assertIn("/api/pipeline/upload/jobs", script_response.text)
         self.assertIn("/api/pipeline/jobs/", script_response.text)
+        self.assertIn("/api/projects/upload", script_response.text)
+        self.assertIn("/api/projects/", script_response.text)
         self.assertNotIn("原书主线", script_response.text)
         self.assertNotIn("关键事件", script_response.text)
         css_response = client.get("/static/styles.css")
@@ -206,6 +209,39 @@ class MainAPITest(unittest.TestCase):
         status_payload = status_response.json()
         self.assertEqual(status_payload["status"], "done")
         self.assertIn("renpy", status_payload["result"]["exports"])
+
+    @patch.dict("os.environ", {"DEEPSEEK_API": "", "LLM_API_KEY": ""})
+    def test_project_upload_persists_and_generates_chapters(self):
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
+                client = TestClient(app)
+                path = Path(tmp) / "sample.epub"
+                write_sample_epub(path)
+
+                with path.open("rb") as file:
+                    response = client.post(
+                        "/api/projects/upload",
+                        data={"pov_character": "鏋楅洦", "llm_model": "deepseek-v4-flash", "max_scenes": "2"},
+                        files={"file": ("sample.epub", file, "application/epub+zip")},
+                    )
+
+                self.assertEqual(response.status_code, 200)
+                project = response.json()
+                self.assertIn("project_id", project)
+
+                status_response = client.get(f"/api/projects/{project['project_id']}")
+                list_response = client.get("/api/projects")
+
+                self.assertEqual(status_response.status_code, 200)
+                payload = status_response.json()
+                self.assertEqual(payload["status"], "done")
+                self.assertGreaterEqual(payload["completed_chapters"], 1)
+                self.assertIn("renpy", payload["result"]["exports"])
+                self.assertEqual(list_response.status_code, 200)
+                self.assertTrue(list_response.json()["projects"])
 
     def test_spa_fallback_only_allows_known_frontend_routes(self):
         client = TestClient(app)
