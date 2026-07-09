@@ -17,11 +17,24 @@ if [[ ! -f "$PACKAGE_PATH" ]]; then
   exit 1
 fi
 
-echo "[1/7] Installing system packages..."
+echo "[1/8] Installing system packages..."
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv python3-pip nginx tar
 
-echo "[2/7] Installing application files..."
+echo "[2/8] Ensuring swap space..."
+if ! swapon --show=NAME | grep -qx '/swapfile'; then
+  if [[ ! -f /swapfile ]]; then
+    fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+    chmod 600 /swapfile
+    mkswap /swapfile
+  fi
+  swapon /swapfile || true
+fi
+if ! grep -q '^/swapfile ' /etc/fstab; then
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+echo "[3/8] Installing application files..."
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR"
@@ -39,12 +52,12 @@ case "$PACKAGE_PATH" in
     ;;
 esac
 
-echo "[3/7] Creating Python environment..."
+echo "[4/8] Creating Python environment..."
 python3 -m venv "$APP_DIR/backend/.venv"
 "$APP_DIR/backend/.venv/bin/pip" install --upgrade pip wheel
 "$APP_DIR/backend/.venv/bin/pip" install "fastapi>=0.116,<1.0" "uvicorn[standard]>=0.35,<1.0" "python-multipart>=0.0.20,<1.0"
 
-echo "[4/7] Configuring environment..."
+echo "[5/8] Configuring environment..."
 if [[ ! -f /etc/novel2gal.env ]]; then
   echo "DEEPSEEK_API=" > /etc/novel2gal.env
   chmod 600 /etc/novel2gal.env
@@ -57,7 +70,17 @@ APP_ENV=prod
 MAX_RETRIEVED_CHUNKS=8
 MAX_CHUNK_CHARS=1500
 CHUNK_OVERLAP_CHARS=200
+MAX_UPLOAD_BYTES=26214400
+MAX_PIPELINE_TEXT_CHARS=1200000
 EOF
+fi
+
+if ! grep -q '^MAX_UPLOAD_BYTES=' /etc/novel2gal.env; then
+  echo 'MAX_UPLOAD_BYTES=26214400' >> /etc/novel2gal.env
+fi
+
+if ! grep -q '^MAX_PIPELINE_TEXT_CHARS=' /etc/novel2gal.env; then
+  echo 'MAX_PIPELINE_TEXT_CHARS=1200000' >> /etc/novel2gal.env
 fi
 
 if ! grep -q '^DEEPSEEK_API=.\+' /etc/novel2gal.env; then
@@ -69,7 +92,7 @@ if ! grep -q '^DEEPSEEK_API=.\+' /etc/novel2gal.env; then
   fi
 fi
 
-echo "[5/7] Creating systemd service..."
+echo "[6/8] Creating systemd service..."
 cat >/etc/systemd/system/${SERVICE_NAME}.service <<EOF
 [Unit]
 Description=Novel2Gal FastAPI service
@@ -91,7 +114,7 @@ systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl restart "$SERVICE_NAME"
 
-echo "[6/7] Configuring Nginx..."
+echo "[7/8] Configuring Nginx..."
 cat >/etc/nginx/sites-available/novel2gal <<EOF
 server {
     listen 80;
@@ -118,7 +141,7 @@ nginx -t
 systemctl enable nginx
 systemctl reload nginx
 
-echo "[7/7] Checking service..."
+echo "[8/8] Checking service..."
 sleep 2
 systemctl --no-pager --full status "$SERVICE_NAME" || true
 curl -fsS http://127.0.0.1:8001/health

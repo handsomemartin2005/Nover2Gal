@@ -82,7 +82,7 @@ def refine_analysis_with_deepseek(
     base_analysis: StoryAnalysis,
     client: ChatClient,
 ) -> StoryAnalysis:
-    messages = _build_messages(title, text, base_analysis)
+    messages = _build_messages(title, _analysis_text_sample(text), base_analysis)
     payload = json.loads(client.chat(messages, json_output=True))
     rejected = set(_string_list(payload.get("not_characters"))) | NOT_CHARACTER_NAMES
     visual_style = _normalize_visual_style(payload.get("visual_style"), text)
@@ -184,6 +184,14 @@ def _build_messages(title: str, text: str, base_analysis: StoryAnalysis) -> list
         },
         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
     ]
+
+
+def _analysis_text_sample(text: str, max_chars: int = 60_000) -> str:
+    if len(text) <= max_chars:
+        return text
+    head = max_chars // 2
+    tail = max_chars - head
+    return f"{text[:head]}\n\n...[middle omitted for server stability]...\n\n{text[-tail:]}"
 
 
 def _normalize_characters(

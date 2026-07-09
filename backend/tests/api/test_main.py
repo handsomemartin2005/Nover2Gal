@@ -177,6 +177,29 @@ class MainAPITest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422)
 
+    def test_spa_fallback_only_allows_known_frontend_routes(self):
+        client = TestClient(app)
+
+        create_response = client.get("/create")
+        env_response = client.get("/.env")
+        scanner_response = client.get("/wp-json")
+
+        self.assertEqual(create_response.status_code, 200)
+        self.assertEqual(env_response.status_code, 404)
+        self.assertEqual(scanner_response.status_code, 404)
+
+    @patch.dict("os.environ", {"MAX_UPLOAD_BYTES": "8"})
+    def test_pipeline_upload_rejects_oversized_file(self):
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/pipeline/upload",
+            data={"pov_character": ""},
+            files={"file": ("too-large.txt", b"0123456789", "text/plain")},
+        )
+
+        self.assertEqual(response.status_code, 413)
+
     def test_media_provider_and_plan_endpoints(self):
         client = TestClient(app)
 
