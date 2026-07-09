@@ -153,6 +153,7 @@ const ASSET_CATALOG = {
 let characterProfilesByName = {};
 let externalAssetCatalog = { backgrounds: [], portraits: [], bgm: [] };
 let activeVisualStyle = "real";
+let activePovCharacter = "";
 let autoplayTimer = null;
 let autoplayEnabled = false;
 let bgmEnabled = false;
@@ -322,6 +323,7 @@ async function runUploadedFile(formData, file) {
 }
 
 function renderResult(result) {
+  activePovCharacter = String(result.pov_character || form.elements.pov?.value || "").trim();
   characterProfilesByName = Object.fromEntries(
     (result.analysis.characters || []).map((character) => [character.name, character]),
   );
@@ -585,6 +587,7 @@ function frameFromBlock(scene, block, speaker, text) {
     stage: scene.stage || defaultStage(scene.background),
     bgm: scene.bgm,
     speaker,
+    speakerKey: block.speaker_key || "",
     text,
     choices: block.choices || [],
     generatedBranch: false,
@@ -776,9 +779,11 @@ function renderStage(frame) {
     sceneArt.appendChild(node);
   });
   const usedPortraits = new Set();
-  (stage.characters || ["protagonist"]).slice(0, 4).forEach((name, index) => {
+  const stageCharacters = (stage.characters || ["protagonist"]).slice(0, 4);
+  const activeSpeaker = focusedSpeakerName(frame, stageCharacters);
+  stageCharacters.forEach((name, index) => {
     const node = document.createElement("div");
-    node.className = `stage-character character-slot-${index}`;
+    node.className = `stage-character character-slot-${index} ${characterFocusClass(name, activeSpeaker)}`;
     const portrait = document.createElement("img");
     portrait.src = characterPortrait(name, index, usedPortraits);
     portrait.alt = displayCharacterName(name);
@@ -788,6 +793,30 @@ function renderStage(frame) {
     node.append(portrait, label);
     sceneArt.appendChild(node);
   });
+}
+
+function focusedSpeakerName(frame, stageCharacters) {
+  const speaker = String(frame.speaker || "").trim();
+  if (!speaker || speaker === "旁白" || speaker === "选择") return "";
+  if (speaker === "我" || frame.speakerKey === "pov") {
+    if (activePovCharacter && stageCharacters.some((name) => sameCharacterName(name, activePovCharacter))) {
+      return activePovCharacter;
+    }
+    return stageCharacters.includes("protagonist") ? "protagonist" : "";
+  }
+  const normalizedSpeaker = normalizeCharacterToken(speaker);
+  return stageCharacters.find((name) => {
+    const normalizedName = normalizeCharacterToken(name);
+    const displayName = normalizeCharacterToken(displayCharacterName(name));
+    return normalizedName === normalizedSpeaker || displayName === normalizedSpeaker;
+  }) || "";
+}
+
+function characterFocusClass(name, activeSpeaker) {
+  if (!activeSpeaker) return "sprite--neutral";
+  if (sameCharacterName(name, activeSpeaker)) return "sprite--active";
+  if (name === "protagonist" && activeSpeaker === "protagonist") return "sprite--active";
+  return "sprite--inactive";
 }
 
 function defaultStage(background) {
@@ -925,6 +954,23 @@ function stableHash(value) {
 function displayCharacterName(name) {
   if (!name || name === "protagonist") return "主角";
   return String(name).slice(0, 4);
+}
+
+function sameCharacterName(a, b) {
+  const left = normalizeCharacterToken(a);
+  const right = normalizeCharacterToken(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  if (a === "protagonist" && activePovCharacter) return right === normalizeCharacterToken(activePovCharacter);
+  if (b === "protagonist" && activePovCharacter) return left === normalizeCharacterToken(activePovCharacter);
+  return false;
+}
+
+function normalizeCharacterToken(value) {
+  return String(value || "")
+    .replace(/^【|】$/g, "")
+    .replace(/[“”"「」『』：:，,。.\s]/g, "")
+    .trim();
 }
 
 function generatedSpeaker(text) {

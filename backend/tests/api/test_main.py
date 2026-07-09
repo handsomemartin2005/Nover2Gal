@@ -67,6 +67,9 @@ class MainAPITest(unittest.TestCase):
 
         self.assertEqual(index_response.status_code, 200)
         self.assertIn("Novel2Gal", index_response.text)
+        self.assertIn("brand-mark", index_response.text)
+        self.assertIn("site-nav", index_response.text)
+        self.assertIn("开始制作", index_response.text)
         self.assertIn('type="file"', index_response.text)
         self.assertIn('id="gamePreview"', index_response.text)
         self.assertIn('id="thoughtPanel"', index_response.text)
@@ -99,6 +102,9 @@ class MainAPITest(unittest.TestCase):
         self.assertIn("scheduleAutoplay", script_response.text)
         self.assertIn("isPlayableAnimePortrait", script_response.text)
         self.assertIn("usedPortraits", script_response.text)
+        self.assertIn("focusedSpeakerName", script_response.text)
+        self.assertIn("sprite--active", script_response.text)
+        self.assertIn("normalizeCharacterToken", script_response.text)
         self.assertIn("document.createElement(\"img\")", script_response.text)
         self.assertIn('button.textContent = choice.text || "选择"', script_response.text)
         self.assertNotIn("`${choice.text} ·", script_response.text)
@@ -109,6 +115,8 @@ class MainAPITest(unittest.TestCase):
         self.assertEqual(css_response.status_code, 200)
         self.assertIn(".scene-art.asset-backed .stage-prop:not(.prop-image)", css_response.text)
         self.assertIn("object-fit: contain", css_response.text)
+        self.assertIn(".site-header", css_response.text)
+        self.assertIn(".stage-character.sprite--inactive img", css_response.text)
 
     @patch.dict("os.environ", {"DEEPSEEK_API": "", "LLM_API_KEY": ""})
     def test_pipeline_upload_endpoint_accepts_epub(self):
