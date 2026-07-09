@@ -735,34 +735,47 @@ li {
 .stage-character {
   position: absolute;
   z-index: 3;
-  bottom: 39%;
-  width: min(15%, 104px);
-  aspect-ratio: 0.58;
-  border-radius: 18px 18px 8px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background-position: center;
-  background-size: cover;
-  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
+  bottom: 32%;
+  width: min(18%, 168px);
+  height: 46%;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.stage-character img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.42));
 }
 
 .stage-character span {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 5px 6px;
-  background: rgba(8, 13, 22, 0.72);
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(8, 13, 22, 0.64);
   color: #fff7ed;
   font-size: 12px;
   font-weight: 700;
   text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
 }
 
 .character-slot-0 { right: 10%; }
 .character-slot-1 { left: 10%; }
-.character-slot-2 { right: 24%; transform: scale(0.9); transform-origin: bottom center; }
-.character-slot-3 { left: 24%; transform: scale(0.9); transform-origin: bottom center; }
+.character-slot-2 { right: 25%; transform: scale(0.9); transform-origin: bottom center; }
+.character-slot-3 { left: 25%; transform: scale(0.9); transform-origin: bottom center; }
 
 .character-standee {
   position: absolute;

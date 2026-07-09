@@ -779,8 +779,13 @@ function renderStage(frame) {
   (stage.characters || ["protagonist"]).slice(0, 4).forEach((name, index) => {
     const node = document.createElement("div");
     node.className = `stage-character character-slot-${index}`;
-    node.style.backgroundImage = `linear-gradient(180deg, rgba(20, 24, 34, 0), rgba(20, 24, 34, 0.52)), url("${characterPortrait(name, index, usedPortraits)}")`;
-    node.innerHTML = `<span>${displayCharacterName(name)}</span>`;
+    const portrait = document.createElement("img");
+    portrait.src = characterPortrait(name, index, usedPortraits);
+    portrait.alt = displayCharacterName(name);
+    portrait.loading = "lazy";
+    const label = document.createElement("span");
+    label.textContent = displayCharacterName(name);
+    node.append(portrait, label);
     sceneArt.appendChild(node);
   });
 }
