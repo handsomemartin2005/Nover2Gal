@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "license_note": "External assets are referenced for runtime use. Do not redistribute third-party raw material packs in this repository; use the download script only after reviewing each source license.",
+  "license_note": "Source URLs are attribution and download references only. Runtime resolves assets from /static/assets/vendor/. Review each source license before local download or redistribution.",
   "backgrounds": [
     {
       "id": "minchi_classroom_front",

@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import threading
 import time
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 import anyio
@@ -16,7 +16,23 @@ from pydantic import BaseModel, Field
 from app.importers.document_importer import import_document_bytes
 from app.core.config import Settings
 from app.media.providers import build_image_generation_plan, build_tts_plan, provider_status
-from app.services.project_queue import create_project_from_upload, list_projects, public_project_payload, run_project
+from app.services.project_queue import (
+    clone_sample,
+    create_project,
+    create_project_from_upload,
+    delete_project,
+    delete_sample,
+    duplicate_project,
+    get_sample,
+    list_project_versions,
+    list_projects,
+    list_samples,
+    public_project_payload,
+    publish_sample,
+    rollback_project_version,
+    run_project,
+    update_project,
+)
 from app.services.novel_pipeline import run_pipeline
 from app.schemas.story import to_api_payload
 
@@ -38,6 +54,40 @@ class ImageGenerationRequest(BaseModel):
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1)
     voice: str = "default"
+
+
+class ProjectCreateRequest(BaseModel):
+    title: str = Field(default="未命名企划", max_length=160)
+    source_text: str = ""
+    filename: str = ""
+    pov_character: str = Field(default="", max_length=120)
+    max_scenes: int | None = Field(default=None, ge=1)
+    llm_model: Literal["deepseek-v4-pro", "deepseek-v4-flash"] | None = None
+
+
+class ProjectUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=160)
+    filename: str | None = None
+    source_text: str | None = None
+    pov_character: str | None = Field(default=None, max_length=120)
+    max_scenes: int | None = Field(default=None, ge=1)
+    llm_model: Literal["deepseek-v4-pro", "deepseek-v4-flash"] | None = None
+    status: Literal["draft", "queued", "running", "done", "failed", "cancelled"] | None = None
+    result: dict[str, Any] | None = None
+    ui_state: dict[str, Any] | None = None
+    current_scene_id: str | None = None
+    version_note: str = "自动快照"
+
+
+class SamplePublishRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=1000)
+    category: str = Field(default="其他", max_length=80)
+    cover: str = ""
+    include_source: bool = False
+    include_script: bool = True
+    visibility: Literal["private", "public"] = "private"
+    allow_clone: bool = True
 
 
 app = FastAPI(title="Novel2Gal Backend", version="0.1.0")
@@ -187,12 +237,105 @@ def list_projects_endpoint() -> dict:
     return {"projects": list_projects()}
 
 
+@app.post("/api/projects")
+def create_project_endpoint(request: ProjectCreateRequest) -> dict:
+    _validate_text_size(request.source_text)
+    return create_project(**request.model_dump())
+
+
 @app.get("/api/projects/{project_id}")
 def project_status_endpoint(project_id: str) -> dict:
     try:
         return public_project_payload(project_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.patch("/api/projects/{project_id}")
+def update_project_endpoint(project_id: str, request: ProjectUpdateRequest) -> dict:
+    updates = request.model_dump(exclude_unset=True)
+    version_note = str(updates.pop("version_note", "自动快照"))
+    if isinstance(updates.get("source_text"), str):
+        _validate_text_size(updates["source_text"])
+    try:
+        return update_project(project_id, updates, version_note=version_note)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.delete("/api/projects/{project_id}")
+def delete_project_endpoint(project_id: str) -> dict:
+    try:
+        delete_project(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    return {"deleted": True, "project_id": project_id}
+
+
+@app.post("/api/projects/{project_id}/duplicate")
+def duplicate_project_endpoint(project_id: str) -> dict:
+    try:
+        return duplicate_project(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.get("/api/projects/{project_id}/versions")
+def list_project_versions_endpoint(project_id: str) -> dict:
+    try:
+        return {"versions": list_project_versions(project_id)}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.post("/api/projects/{project_id}/versions/{version_id}/rollback")
+def rollback_project_version_endpoint(project_id: str, version_id: str) -> dict:
+    try:
+        return rollback_project_version(project_id, version_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project or version not found") from exc
+
+
+@app.post("/api/projects/{project_id}/samples")
+def publish_sample_endpoint(project_id: str, request: SamplePublishRequest) -> dict:
+    if request.visibility == "public" and request.include_source:
+        raise HTTPException(status_code=422, detail="Public samples cannot include the full source text")
+    try:
+        return publish_sample(project_id, request.model_dump())
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.get("/api/samples")
+def list_samples_endpoint() -> dict:
+    return {"samples": list_samples()}
+
+
+@app.get("/api/samples/{sample_id}")
+def get_sample_endpoint(sample_id: str) -> dict:
+    try:
+        return get_sample(sample_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+
+
+@app.post("/api/samples/{sample_id}/clone")
+def clone_sample_endpoint(sample_id: str) -> dict:
+    try:
+        return clone_sample(sample_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail="This sample cannot be cloned") from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+
+
+@app.delete("/api/samples/{sample_id}")
+def delete_sample_endpoint(sample_id: str) -> dict:
+    try:
+        delete_sample(sample_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+    return {"deleted": True, "sample_id": sample_id}
 
 
 def _validate_upload_model(value: str | None) -> str | None:

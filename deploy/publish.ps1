@@ -1,0 +1,67 @@
+param(
+  [string]$Server = "47.94.183.24",
+  [string]$User = "root",
+  [string]$Domain = "dianlijiliang.cn",
+  [string]$KeyPath = ".deploy_keys\novel2gal_aliyun_ed25519",
+  [switch]$KeepPackage
+)
+
+$ErrorActionPreference = "Stop"
+$root = Resolve-Path (Join-Path $PSScriptRoot "..")
+$key = Resolve-Path (Join-Path $root $KeyPath) -ErrorAction Stop
+$packageName = "novel2gal-release.tar.gz"
+$package = Join-Path $root $packageName
+$remotePackage = "/tmp/$packageName"
+$remoteInstaller = "/tmp/novel2gal-server_install.sh"
+
+function Invoke-Checked([string]$File, [string[]]$Arguments) {
+  & $File @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "$File failed with exit code $LASTEXITCODE"
+  }
+}
+
+Write-Host "[1/5] Building release package..."
+& (Join-Path $PSScriptRoot "build_release_tar.ps1") -Output $packageName
+if ($LASTEXITCODE -ne 0) {
+  throw "Release package build failed with exit code $LASTEXITCODE"
+}
+
+$sshBase = @(
+  "-i", $key.Path,
+  "-o", "StrictHostKeyChecking=no",
+  "$User@$Server"
+)
+
+Write-Host "[2/5] Uploading release package..."
+Invoke-Checked "scp" @(
+  "-i", $key.Path,
+  "-o", "StrictHostKeyChecking=no",
+  $package,
+  "$User@$Server`:$remotePackage"
+)
+
+Write-Host "[3/5] Uploading server installer..."
+Invoke-Checked "scp" @(
+  "-i", $key.Path,
+  "-o", "StrictHostKeyChecking=no",
+  (Join-Path $PSScriptRoot "server_install.sh"),
+  "$User@$Server`:$remoteInstaller"
+)
+
+Write-Host "[4/5] Installing and restarting on $Server..."
+$remoteCommand = "chmod +x $remoteInstaller && NOVEL2GAL_DOMAIN=$Domain $remoteInstaller $remotePackage"
+Invoke-Checked "ssh" ($sshBase + @($remoteCommand))
+
+Write-Host "[5/5] Checking public health endpoint..."
+$healthUrl = "http://$Domain/health"
+$health = Invoke-RestMethod -Uri $healthUrl -Method Get -TimeoutSec 30
+if ($health.status -ne "ok") {
+  throw "Health check returned an unexpected response: $($health | ConvertTo-Json -Compress)"
+}
+
+if (-not $KeepPackage -and (Test-Path $package)) {
+  Remove-Item $package -Force
+}
+
+Write-Host "Published successfully: http://$Domain"

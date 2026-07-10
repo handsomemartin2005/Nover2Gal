@@ -134,6 +134,8 @@ cd backend
 node --check frontend/app.js
 ```
 
+完整的前端模块、项目持久化、部署与人工验收说明见：[docs/FRONTEND_ARCHITECTURE.md](docs/FRONTEND_ARCHITECTURE.md)。
+
 ## 未来计划
 
 - 保存项目、上传文件、生成剧本和玩家分支记录

@@ -1,0 +1,23 @@
+@keyframes button-ripple { to { opacity: 0; transform: translate(-50%,-50%) scale(18); } }
+@keyframes route-reveal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes header-arrive { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes logo-glint { 0%, 20% { filter: brightness(1); } 38% { filter: brightness(1.45) drop-shadow(0 0 12px rgba(255,214,123,.55)); } 60%, 100% { filter: brightness(1); } }
+@keyframes nav-arrive { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+.route-enter > * { animation: route-reveal var(--motion-slow) var(--ease-out) both; }
+.route-enter .anime-header { animation: header-arrive var(--motion-slow) var(--ease-out) both; }
+.route-enter .brand-logo { animation: logo-glint 900ms var(--ease-soft) 260ms both; }
+.route-enter .site-nav a { animation: nav-arrive var(--motion-base) var(--ease-out) both; animation-delay: calc(100ms + var(--nav-index) * 55ms); }
+.route-enter [data-reveal] { animation: route-reveal var(--motion-cinematic) var(--ease-out) 100ms both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .ambient-orb { display: none; }
+}
+
+html[data-motion="reduced"] { scroll-behavior: auto; }
+html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-motion="reduced"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+html[data-motion="reduced"] .ambient-orb { display: none; }
+html[data-motion="balanced"] .ambient-orb { opacity: .32; }
+

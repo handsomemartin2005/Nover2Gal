@@ -88,7 +88,7 @@ class MainAPITest(unittest.TestCase):
         self.assertIn("templatesPageTemplate", script_response.text)
         self.assertIn("projectsPageTemplate", script_response.text)
         self.assertIn("animeHeaderMarkup", script_response.text)
-        self.assertIn('href="/create"', script_response.text)
+        self.assertIn('href="/create?new=1"', script_response.text)
         self.assertIn('type="file"', script_response.text)
         self.assertIn('id="gamePreview"', script_response.text)
         self.assertIn('id="thoughtPanel"', script_response.text)
@@ -244,6 +244,66 @@ class MainAPITest(unittest.TestCase):
                 self.assertIn("renpy", payload["result"]["exports"])
                 self.assertEqual(list_response.status_code, 200)
                 self.assertTrue(list_response.json()["projects"])
+
+    def test_project_crud_versions_and_samples(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
+                client = TestClient(app)
+                created = client.post(
+                    "/api/projects",
+                    json={"title": "星轨企划", "source_text": "第一章\n她推开门。", "pov_character": "苏晚"},
+                )
+                self.assertEqual(created.status_code, 200)
+                project_id = created.json()["project_id"]
+
+                first_result = {"stats": {"adaptation_scenes": 1}, "adaptation_scenes": [], "exports": {"renpy": "one", "markdown": "one"}}
+                second_result = {"stats": {"adaptation_scenes": 2}, "adaptation_scenes": [], "exports": {"renpy": "two", "markdown": "two"}}
+                saved = client.patch(
+                    f"/api/projects/{project_id}",
+                    json={"status": "done", "result": first_result, "current_scene_id": "scene-1"},
+                )
+                versioned = client.patch(
+                    f"/api/projects/{project_id}",
+                    json={"result": second_result, "version_note": "重新生成场景"},
+                )
+
+                self.assertEqual(saved.status_code, 200)
+                self.assertEqual(versioned.status_code, 200)
+                self.assertEqual(versioned.json()["source_text"], "第一章\n她推开门。")
+                versions = client.get(f"/api/projects/{project_id}/versions")
+                self.assertEqual(len(versions.json()["versions"]), 1)
+
+                sample = client.post(
+                    f"/api/projects/{project_id}/samples",
+                    json={"title": "星轨样例", "category": "校园恋爱", "include_script": True},
+                )
+                self.assertEqual(sample.status_code, 200)
+                sample_id = sample.json()["sample_id"]
+                self.assertEqual(client.get("/api/samples").status_code, 200)
+                cloned = client.post(f"/api/samples/{sample_id}/clone")
+                self.assertEqual(cloned.status_code, 200)
+                self.assertNotEqual(cloned.json()["project_id"], project_id)
+
+                duplicated = client.post(f"/api/projects/{project_id}/duplicate")
+                self.assertEqual(duplicated.status_code, 200)
+                deleted = client.delete(f"/api/projects/{project_id}")
+                self.assertEqual(deleted.status_code, 200)
+                self.assertEqual(client.get(f"/api/projects/{project_id}").status_code, 404)
+
+    def test_public_sample_cannot_include_source_text(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
+                client = TestClient(app)
+                project = client.post("/api/projects", json={"title": "隐私测试", "source_text": "完整原文"}).json()
+                response = client.post(
+                    f"/api/projects/{project['project_id']}/samples",
+                    json={"title": "公开样例", "visibility": "public", "include_source": True},
+                )
+                self.assertEqual(response.status_code, 422)
 
     def test_spa_fallback_only_allows_known_frontend_routes(self):
         client = TestClient(app)
