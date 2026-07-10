@@ -19,7 +19,7 @@ fi
 
 echo "[1/8] Installing system packages..."
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv python3-pip nginx tar
+DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv python3-pip nginx tar certbot python3-certbot-nginx
 
 echo "[2/8] Ensuring swap space..."
 if ! swapon --show=NAME | grep -qx '/swapfile'; then
@@ -92,6 +92,14 @@ if ! grep -q '^PROJECT_STORE_DIR=' /etc/novel2gal.env; then
   echo 'PROJECT_STORE_DIR=/var/lib/novel2gal/projects' >> /etc/novel2gal.env
 fi
 
+if ! grep -q '^AUTH_DB_PATH=' /etc/novel2gal.env; then
+  echo 'AUTH_DB_PATH=/var/lib/novel2gal/auth.sqlite3' >> /etc/novel2gal.env
+fi
+
+if ! grep -q '^SESSION_COOKIE_SECURE=' /etc/novel2gal.env; then
+  echo 'SESSION_COOKIE_SECURE=true' >> /etc/novel2gal.env
+fi
+
 mkdir -p /var/lib/novel2gal/projects
 chmod 700 /var/lib/novel2gal
 
@@ -153,9 +161,19 @@ nginx -t
 systemctl enable nginx
 systemctl reload nginx
 
+if [[ "$DOMAIN_NAME" != "_" && ! "$DOMAIN_NAME" =~ ^[0-9.]+$ ]]; then
+  echo "[7/8] Enabling HTTPS..."
+  certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email \
+    --redirect --keep-until-expiring -d "$DOMAIN_NAME"
+fi
+
 echo "[8/8] Checking service..."
 sleep 2
 systemctl --no-pager --full status "$SERVICE_NAME" || true
 curl -fsS http://127.0.0.1:8001/health
 echo
-echo "Done. Open: http://47.94.183.24"
+if [[ "$DOMAIN_NAME" != "_" && ! "$DOMAIN_NAME" =~ ^[0-9.]+$ ]]; then
+  echo "Done. Open: https://${DOMAIN_NAME}"
+else
+  echo "Done. Open: http://47.94.183.24"
+fi

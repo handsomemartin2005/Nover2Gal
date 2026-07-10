@@ -1,8 +1,10 @@
-import { api } from "/static/js/api-client.js";
+import { api } from "/static/js/api-client.js?v=20260710-auth2";
 
 export function initLandingPage(root) {
   const deck = root.querySelector("#folioDeck");
+  const stage = deck?.closest(".folio-stage");
   const cards = [...root.querySelectorAll("[data-folio]")];
+  const switchers = [...root.querySelectorAll("[data-folio-switch]")];
   const cleanups = [];
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "reduced";
   let activeCard = null;
@@ -11,6 +13,8 @@ export function initLandingPage(root) {
     if (!deck || window.innerWidth < 760) return;
     if (!card || !deck.contains(card)) return;
     activeCard = card;
+    stage?.classList.add("has-active-folio");
+    if (stage) stage.dataset.activeFolio = card.dataset.folio || "";
     deck.classList.add("is-exploded");
     deck.dataset.activeFolio = card.dataset.folio || "";
     cards.forEach((item) => item.classList.toggle("is-active", item === card));
@@ -19,6 +23,8 @@ export function initLandingPage(root) {
   const reset = () => {
     if (!deck) return;
     activeCard = null;
+    stage?.classList.remove("has-active-folio");
+    if (stage) delete stage.dataset.activeFolio;
     deck.classList.remove("is-exploded");
     delete deck.dataset.activeFolio;
     cards.forEach((item) => {
@@ -43,25 +49,36 @@ export function initLandingPage(root) {
     };
     const onLeave = () => reset();
     const onFocusOut = () => window.setTimeout(() => {
-      if (!deck.contains(document.activeElement)) reset();
+      if (!stage?.contains(document.activeElement)) reset();
     }, 0);
     deck.addEventListener("pointerover", onEnter);
     deck.addEventListener("mouseover", onEnter);
     deck.addEventListener("focusin", onFocus);
     deck.addEventListener("pointermove", onMove);
     deck.addEventListener("mousemove", onMove);
-    deck.addEventListener("pointerleave", onLeave);
-    deck.addEventListener("mouseleave", onLeave);
-    deck.addEventListener("focusout", onFocusOut);
+    stage?.addEventListener("pointerleave", onLeave);
+    stage?.addEventListener("mouseleave", onLeave);
+    stage?.addEventListener("focusout", onFocusOut);
+    switchers.forEach((switcher) => {
+      const onSwitch = () => activate(cards.find((card) => card.dataset.folio === switcher.dataset.folioSwitch));
+      switcher.addEventListener("pointerenter", onSwitch);
+      switcher.addEventListener("mouseenter", onSwitch);
+      switcher.addEventListener("focus", onSwitch);
+      cleanups.push(
+        () => switcher.removeEventListener("pointerenter", onSwitch),
+        () => switcher.removeEventListener("mouseenter", onSwitch),
+        () => switcher.removeEventListener("focus", onSwitch),
+      );
+    });
     cleanups.push(
       () => deck.removeEventListener("pointerover", onEnter),
       () => deck.removeEventListener("mouseover", onEnter),
       () => deck.removeEventListener("focusin", onFocus),
       () => deck.removeEventListener("pointermove", onMove),
       () => deck.removeEventListener("mousemove", onMove),
-      () => deck.removeEventListener("pointerleave", onLeave),
-      () => deck.removeEventListener("mouseleave", onLeave),
-      () => deck.removeEventListener("focusout", onFocusOut),
+      () => stage?.removeEventListener("pointerleave", onLeave),
+      () => stage?.removeEventListener("mouseleave", onLeave),
+      () => stage?.removeEventListener("focusout", onFocusOut),
       () => delete deck.dataset.folioReady,
     );
   }

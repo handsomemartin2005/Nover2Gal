@@ -28,6 +28,7 @@
 
 @media (max-width: 560px) {
   .brand-copy { display: none; }
+  .auth-slot { display: none; }
   .header-cta span { font-size: 12px; }
   .landing-intro h1 { font-size: clamp(34px, 11vw, 52px); }
   .landing-intro h1 br { display: none; }

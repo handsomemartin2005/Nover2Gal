@@ -12,10 +12,11 @@ async function request(path, options = {}) {
   if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(path, { credentials: "same-origin", ...options, headers });
   const contentType = response.headers.get("content-type") || "";
   const payload = contentType.includes("application/json") ? await response.json() : await response.text();
   if (!response.ok) {
+    if (response.status === 401) window.dispatchEvent(new CustomEvent("novel2gal:auth-required"));
     const message = payload?.detail || payload?.message || `请求失败（${response.status}）`;
     throw new ApiError(message, response.status, payload);
   }
@@ -24,6 +25,12 @@ async function request(path, options = {}) {
 
 export const api = {
   request,
+  getMe: () => request("/api/auth/me"),
+  register: (payload) => request("/api/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+  login: (payload) => request("/api/auth/login", { method: "POST", body: JSON.stringify(payload) }),
+  logout: () => request("/api/auth/logout", { method: "POST" }),
+  updateProfile: (payload) => request("/api/auth/profile", { method: "PATCH", body: JSON.stringify(payload) }),
+  changePassword: (payload) => request("/api/auth/password", { method: "POST", body: JSON.stringify(payload) }),
   listProjects: () => request("/api/projects"),
   getProject: (id) => request(`/api/projects/${encodeURIComponent(id)}`),
   createProject: (payload) => request("/api/projects", { method: "POST", body: JSON.stringify(payload) }),
@@ -35,9 +42,19 @@ export const api = {
   listSamples: () => request("/api/samples"),
   getSample: (id) => request(`/api/samples/${encodeURIComponent(id)}`),
   publishSample: (projectId, payload) => request(`/api/projects/${encodeURIComponent(projectId)}/samples`, { method: "POST", body: JSON.stringify(payload) }),
+  updateSample: (id, payload) => request(`/api/samples/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
   cloneSample: (id) => request(`/api/samples/${encodeURIComponent(id)}/clone`, { method: "POST" }),
   deleteSample: (id) => request(`/api/samples/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  adminOverview: () => request("/api/admin/overview"),
+  adminUsers: () => request("/api/admin/users"),
+  adminUpdateUser: (id, payload) => request(`/api/admin/users/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  adminProjects: () => request("/api/admin/projects"),
+  adminAssignProject: (id, ownerId) => request(`/api/admin/projects/${encodeURIComponent(id)}/owner`, { method: "PATCH", body: JSON.stringify({ owner_id: ownerId }) }),
+  adminDeleteProject: (id) => request(`/api/admin/projects/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  adminSamples: () => request("/api/admin/samples"),
+  adminUpdateSample: (id, payload) => request(`/api/admin/samples/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  adminAssignSample: (id, ownerId) => request(`/api/admin/samples/${encodeURIComponent(id)}/owner`, { method: "PATCH", body: JSON.stringify({ owner_id: ownerId }) }),
+  adminDeleteSample: (id) => request(`/api/admin/samples/${encodeURIComponent(id)}`, { method: "DELETE" }),
 };
 
 export { ApiError };
-

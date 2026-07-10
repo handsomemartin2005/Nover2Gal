@@ -40,3 +40,19 @@ powershell -ExecutionPolicy Bypass -File .\deploy\publish.ps1 `
 $env:PYTHONPATH = "$PWD\backend"
 & "$PWD\backend\.venv\Scripts\python.exe" -m unittest discover -s tests
 ```
+
+## HTTPS 与首次管理员
+
+安装脚本会为真实域名安装 Certbot、签发证书并把 HTTP 重定向到 HTTPS。注册与登录上线前必须确认 `https://<域名>/health` 可访问。
+
+首次上线账户系统时，在服务器的 `/etc/novel2gal.env` 临时加入：
+
+```text
+AUTH_DB_PATH=/var/lib/novel2gal/auth.sqlite3
+SESSION_COOKIE_SECURE=true
+NOVEL2GAL_ADMIN_USERNAME=admin
+NOVEL2GAL_ADMIN_PASSWORD=<一次性强密码>
+NOVEL2GAL_CLAIM_LEGACY_TO_ADMIN=true
+```
+
+服务首次成功启动后，旧的无归属项目与样例会转给管理员。随后删除 `NOVEL2GAL_ADMIN_PASSWORD` 与 `NOVEL2GAL_CLAIM_LEGACY_TO_ADMIN` 两行并重启服务，避免在环境文件中长期保留引导密码。

@@ -54,7 +54,7 @@ $remoteCommand = "chmod +x $remoteInstaller && NOVEL2GAL_DOMAIN=$Domain $remoteI
 Invoke-Checked "ssh" ($sshBase + @($remoteCommand))
 
 Write-Host "[5/5] Checking public health endpoint..."
-$healthUrl = "http://$Domain/health"
+$healthUrl = "https://$Domain/health"
 $health = Invoke-RestMethod -Uri $healthUrl -Method Get -TimeoutSec 30
 if ($health.status -ne "ok") {
   throw "Health check returned an unexpected response: $($health | ConvertTo-Json -Compress)"
@@ -64,4 +64,4 @@ if (-not $KeepPackage -and (Test-Path $package)) {
   Remove-Item $package -Force
 }
 
-Write-Host "Published successfully: http://$Domain"
+Write-Host "Published successfully: https://$Domain"

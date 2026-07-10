@@ -27,6 +27,13 @@
 .site-nav a:hover, .site-nav a.active { color: var(--text-main); }
 .site-nav a:hover::after, .site-nav a.active::after { right: 15%; left: 15%; }
 .header-tools { display: flex; align-items: center; justify-content: end; gap: 9px; min-width: 310px; }
+.auth-slot { display: flex; align-items: center; min-width: 116px; }
+.account-link { display: grid; gap: 1px; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 7px 10px; color: var(--text-secondary); font-size: 10px; text-decoration: none; }
+.account-link span { overflow: hidden; max-width: 105px; color: var(--text-main); font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.account-link small { color: var(--text-muted); font-size: 8px; }
+.account-menu { position: relative; display: flex; align-items: center; gap: 5px; }
+.account-menu > a:not(.account-link), .account-menu > button { border: 0; padding: 7px; color: var(--text-muted); background: transparent; font-size: 9px; text-decoration: none; }
+.account-menu > a:hover, .account-menu > button:hover { color: var(--text-main); }
 .recent-project { display: flex; align-items: center; gap: 9px; max-width: 138px; margin-right: 3px; color: var(--text-muted); }
 .recent-project__dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--success); box-shadow: 0 0 10px rgba(100,230,171,.5); }
 .recent-project > span:last-child { display: grid; min-width: 0; }

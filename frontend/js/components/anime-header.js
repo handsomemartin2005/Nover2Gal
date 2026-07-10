@@ -3,6 +3,7 @@ const navItems = [
   ["/templates", "模板与案例"],
   ["/create", "开始制作"],
   ["/projects", "我的项目"],
+  ["/account", "账号"],
 ];
 
 export function brandMarkup(extraClass = "") {
@@ -18,7 +19,6 @@ export function brandMarkup(extraClass = "") {
 }
 
 export function animeHeaderMarkup(activePath = "/", options = {}) {
-  const lastProject = localStorage.getItem("novel2gal.lastProjectTitle") || "尚未打开企划";
   return `
     <header class="site-header anime-header" data-anime-header>
       ${brandMarkup()}
@@ -31,10 +31,7 @@ export function animeHeaderMarkup(activePath = "/", options = {}) {
         `).join("")}
       </nav>
       <div class="header-tools">
-        <div class="recent-project" title="最近项目">
-          <span class="recent-project__dot"></span>
-          <span><small>最近打开</small><strong>${escapeText(lastProject)}</strong></span>
-        </div>
+        <div class="auth-slot" data-auth-slot><a class="account-link" href="/account">登录 / 注册</a></div>
         <button class="icon-button" type="button" data-open-settings aria-label="动效设置" title="动效设置">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.25A3.75 3.75 0 1 0 12 15.75 3.75 3.75 0 0 0 12 8.25Zm8.1 5.13-1.56.9a7.2 7.2 0 0 1-.74 1.78l.47 1.74-1.47 1.47-1.74-.47a7.2 7.2 0 0 1-1.78.74l-.9 1.56h-2.08l-.9-1.56a7.2 7.2 0 0 1-1.78-.74l-1.74.47-1.47-1.47.47-1.74a7.2 7.2 0 0 1-.74-1.78l-1.56-.9v-2.08l1.56-.9c.17-.63.42-1.22.74-1.78L4.61 6.9 6.08 5.43l1.74.47c.56-.32 1.15-.57 1.78-.74l.9-1.56h2.08l.9 1.56c.63.17 1.22.42 1.78.74L17 5.43l1.47 1.47L18 8.64c.32.56.57 1.15.74 1.78l1.56.9v2.08Z"/></svg>
         </button>
@@ -44,8 +41,4 @@ export function animeHeaderMarkup(activePath = "/", options = {}) {
       </div>
     </header>
   `;
-}
-
-function escapeText(value) {
-  return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }

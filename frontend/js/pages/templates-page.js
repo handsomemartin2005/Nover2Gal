@@ -1,4 +1,4 @@
-import { api } from "/static/js/api-client.js";
+import { api } from "/static/js/api-client.js?v=20260710-auth2";
 import { openModal, escapeHtml, confirmModal } from "/static/js/components/modal.js";
 import { showToast } from "/static/js/components/toast.js";
 
@@ -21,8 +21,8 @@ export async function initTemplatesPage(root) {
     const query = search.value.trim().toLowerCase();
     const items = [
       ...BUILTIN_SAMPLES.map((item) => ({ ...item, builtin: true })),
-      ...customSamples.map((item) => ({ ...item, id: item.sample_id, category: item.category || "我的样例", pov: item.pov_character || "自动视角", scenes: item.scene_count || 0, characters: "随项目", branches: "随项目", cost: "已生成", updated: "私人存档", resources: "—", builtin: false })),
-    ].filter((item) => (activeCategory === "全部" || (activeCategory === "我的样例" ? !item.builtin : item.category === activeCategory)) && `${item.title} ${item.description} ${item.category}`.toLowerCase().includes(query));
+      ...customSamples.map((item) => ({ ...item, id: item.sample_id, category: item.category || "其他", pov: item.pov_character || "自动视角", scenes: item.scene_count || 0, characters: "随项目", branches: "随项目", cost: "已生成", updated: item.visibility === "public" ? "公开样例" : "私人样例", resources: "—", builtin: false })),
+    ].filter((item) => (activeCategory === "全部" || (activeCategory === "我的样例" ? item.can_manage : item.category === activeCategory)) && `${item.title} ${item.description} ${item.category}`.toLowerCase().includes(query));
     grid.innerHTML = items.map(templateCard).join("") || '<div class="library-empty"><span class="empty-book" aria-hidden="true"></span><h2>没有找到匹配的样例</h2><p>尝试其他关键词或分类。</p></div>';
   };
   const onFilter = (event) => {
@@ -57,11 +57,11 @@ export async function initTemplatesPage(root) {
 
 function templateCard(item, index) {
   const featured = index === 0 ? " template-volume--featured" : "";
-  const privateClass = item.builtin ? "" : " template-volume--private";
+  const privateClass = !item.builtin && item.visibility !== "public" ? " template-volume--private" : "";
   const cover = escapeHtml(item.cover || "/static/assets/editorial/rain-convenience.webp");
   return `<article class="template-volume genre-${genreSlug(item.category)}${featured}${privateClass}" data-template-id="${escapeHtml(item.id)}" data-reveal-card>
     <button class="volume-cover" type="button" data-template-action="preview" style="--template-art:url('${cover}')" aria-label="预览${escapeHtml(item.title)}">
-      <span class="volume-binding"></span><span class="volume-issue">${item.builtin ? `第 ${String(index + 1).padStart(2, "0")} 册` : "私人样例"}</span>
+      <span class="volume-binding"></span><span class="volume-issue">${item.builtin ? `第 ${String(index + 1).padStart(2, "0")} 册` : item.visibility === "public" ? "公开样例" : "私人样例"}</span>
       <span class="volume-cover-title">${escapeHtml(item.title)}</span><span class="volume-cover-category">${escapeHtml(item.category)}</span>
     </button>
     <div class="volume-copy"><span class="paper-tab">${escapeHtml(item.category)}</span><h2>${escapeHtml(item.title)}</h2><p>${escapeHtml(item.description)}</p><small>核心视角：${escapeHtml(item.pov || "自动视角")}</small>
@@ -80,15 +80,20 @@ function openTemplateDetail(item, custom) {
     title: item.title,
     eyebrow: `${item.category} · 模板详情`,
     className: "template-detail-modal",
-    content: `<div class="template-detail"><div class="template-detail-cover" style="background-image:linear-gradient(180deg,transparent,rgba(4,8,20,.72)),url('${escapeHtml(item.cover || "/static/assets/editorial/rain-convenience.webp")}')"></div><div class="template-detail-copy"><p>${escapeHtml(item.description || "私人创作样例")}</p><dl><div><dt>核心视角</dt><dd>${escapeHtml(item.pov || item.pov_character || "自动视角")}</dd></div><div><dt>场景</dt><dd>${item.scenes || item.scene_count || 0}</dd></div><div><dt>角色</dt><dd>${item.characters || "随项目"}</dd></div><div><dt>资源</dt><dd>${item.resources || "随项目"}</dd></div></dl><p class="privacy-note">${custom ? "私人样例仅在当前项目存储中可见。" : "内置样例提供结构参考，复制后可自由编辑。"}</p></div></div>`,
-    actions: `${custom ? '<button class="anime-button anime-button--danger" type="button" data-delete-sample>删除私人样例</button>' : ""}<button class="anime-button anime-button--ghost" type="button" data-generic-close>返回</button><button class="anime-button anime-button--primary" type="button" data-use-detail>复制为新项目</button>`,
+    content: `<div class="template-detail"><div class="template-detail-cover" style="background-image:linear-gradient(180deg,transparent,rgba(4,8,20,.72)),url('${escapeHtml(item.cover || "/static/assets/editorial/rain-convenience.webp")}')"></div><div class="template-detail-copy"><p>${escapeHtml(item.description || "创作样例")}</p><dl><div><dt>核心视角</dt><dd>${escapeHtml(item.pov || item.pov_character || "自动视角")}</dd></div><div><dt>场景</dt><dd>${item.scenes || item.scene_count || 0}</dd></div><div><dt>角色</dt><dd>${item.characters || "随项目"}</dd></div><div><dt>可见性</dt><dd>${custom ? item.visibility === "public" ? "公开" : "仅自己" : "内置"}</dd></div></dl><p class="privacy-note">${custom ? item.visibility === "public" ? "公开样例会展示给所有访问者，但不包含原文全文。" : "私人样例只对当前账号可见。" : "内置样例提供结构参考，复制后可自由编辑。"}</p></div></div>`,
+    actions: `${custom && item.can_manage ? `<button class="anime-button anime-button--ghost" type="button" data-toggle-sample>${item.visibility === "public" ? "设为私密" : "设为公开"}</button><button class="anime-button anime-button--danger" type="button" data-delete-sample>删除样例</button>` : ""}<button class="anime-button anime-button--ghost" type="button" data-generic-close>返回</button><button class="anime-button anime-button--primary" type="button" data-use-detail>复制为新项目</button>`,
     onMount(panel) {
       panel.querySelector("[data-use-detail]").addEventListener("click", () => useTemplate(item, custom));
       panel.querySelector("[data-delete-sample]")?.addEventListener("click", async () => {
-        const confirmed = await confirmModal({ title: "删除私人样例？", message: `“${item.title}”将从模板库移除，原项目不会删除。`, confirmLabel: "删除样例", danger: true });
+        const confirmed = await confirmModal({ title: "删除样例？", message: `“${item.title}”将从模板库移除，原项目不会删除。`, confirmLabel: "删除样例", danger: true });
         if (!confirmed) return;
         await api.deleteSample(item.sample_id);
         showToast("私人样例已删除", "success");
+        window.location.reload();
+      });
+      panel.querySelector("[data-toggle-sample]")?.addEventListener("click", async () => {
+        await api.updateSample(item.sample_id, { visibility: item.visibility === "public" ? "private" : "public" });
+        showToast(item.visibility === "public" ? "样例已设为私密" : "样例已公开", "success");
         window.location.reload();
       });
     },
@@ -101,7 +106,10 @@ async function useTemplate(item, custom) {
     if (!custom) project = await api.updateProject(project.project_id, { status: "done", result: builtinResult(item), version_note: "内置样例初始化" });
     showToast("样例已复制，正在进入工作台", "success");
     window.location.href = `/create?project_id=${encodeURIComponent(project.project_id)}`;
-  } catch (error) { showToast(error.message, "error"); }
+  } catch (error) {
+    if (error.status === 401) window.location.assign(`/account?next=${encodeURIComponent("/templates")}`);
+    else showToast(error.message, "error");
+  }
 }
 
 function builtinResult(item) {

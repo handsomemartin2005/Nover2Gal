@@ -31,6 +31,7 @@ PROJECT_EDITABLE_FIELDS = {
     "ui_state",
     "current_scene_id",
 }
+SAMPLE_EDITABLE_FIELDS = {"title", "description", "category", "cover", "visibility", "allow_clone"}
 
 
 def create_project(
@@ -43,11 +44,13 @@ def create_project(
     llm_model: str | None = None,
     result: dict[str, Any] | None = None,
     status: str = "draft",
+    owner_id: str = "",
 ) -> dict[str, Any]:
     project_id = uuid4().hex
     now = time.time()
     project = {
         "project_id": project_id,
+        "owner_id": owner_id,
         "title": title.strip() or "未命名企划",
         "filename": filename,
         "source_type": Path(filename).suffix.lstrip(".") or "text",
@@ -82,6 +85,7 @@ def create_project_from_upload(
     pov_character: str = "",
     max_scenes: int | None = None,
     llm_model: str | None = None,
+    owner_id: str = "",
 ) -> dict[str, Any]:
     document = import_document_bytes(filename, content)
     chapters = split_chapters(document.text)
@@ -93,6 +97,7 @@ def create_project_from_upload(
     now = time.time()
     project = {
         "project_id": project_id,
+        "owner_id": owner_id,
         "title": title or document.title,
         "filename": filename,
         "source_type": document.source_type,
@@ -214,7 +219,25 @@ def public_project_payload(project_id: str) -> dict[str, Any]:
     return payload
 
 
-def list_projects() -> list[dict[str, Any]]:
+def project_owner_id(project_id: str) -> str:
+    project = _read_project(project_id)
+    if not project:
+        raise KeyError(project_id)
+    return str(project.get("owner_id") or "")
+
+
+def assign_project_owner(project_id: str, owner_id: str) -> dict[str, Any]:
+    with PROJECT_LOCK:
+        project = _read_project_unlocked(project_id)
+        if not project:
+            raise KeyError(project_id)
+        project["owner_id"] = owner_id
+        project["updated_at"] = time.time()
+        _write_project_unlocked(project_id, project)
+    return public_project_payload(project_id)
+
+
+def list_projects(owner_id: str | None = None) -> list[dict[str, Any]]:
     root = _store_dir()
     if not root.exists():
         return []
@@ -224,8 +247,11 @@ def list_projects() -> list[dict[str, Any]]:
             project = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             continue
+        if owner_id is not None and project.get("owner_id") != owner_id:
+            continue
         summary = {key: project.get(key) for key in [
             "project_id",
+            "owner_id",
             "title",
             "filename",
             "pov_character",
@@ -285,7 +311,7 @@ def delete_project(project_id: str) -> None:
         shutil.rmtree(project_dir)
 
 
-def duplicate_project(project_id: str) -> dict[str, Any]:
+def duplicate_project(project_id: str, *, owner_id: str = "") -> dict[str, Any]:
     source = public_project_payload(project_id)
     return create_project(
         title=f"{source.get('title') or '未命名企划'} · 副本",
@@ -296,6 +322,7 @@ def duplicate_project(project_id: str) -> dict[str, Any]:
         llm_model=source.get("llm_model"),
         result=source.get("result"),
         status="done" if source.get("result") else "draft",
+        owner_id=owner_id or str(source.get("owner_id") or ""),
     )
 
 
@@ -319,26 +346,29 @@ def rollback_project_version(project_id: str, version_id: str) -> dict[str, Any]
     return update_project(project_id, {"result": version.get("result"), "status": "done"}, version_note="回滚前快照")
 
 
-def publish_sample(project_id: str, sample_data: dict[str, Any]) -> dict[str, Any]:
+def publish_sample(project_id: str, sample_data: dict[str, Any], *, owner_id: str = "") -> dict[str, Any]:
     project = public_project_payload(project_id)
     sample_id = uuid4().hex
     now = time.time()
+    is_public = sample_data.get("visibility") == "public"
+    include_source = bool(sample_data.get("include_source", False)) and not is_public
     sample = {
         "sample_id": sample_id,
         "project_id": project_id,
+        "owner_id": owner_id or str(project.get("owner_id") or ""),
         "title": str(sample_data.get("title") or project.get("title") or "未命名样例").strip(),
         "description": str(sample_data.get("description") or ""),
         "category": str(sample_data.get("category") or "其他"),
         "cover": str(sample_data.get("cover") or ""),
-        "visibility": "public" if sample_data.get("visibility") == "public" else "private",
+        "visibility": "public" if is_public else "private",
         "allow_clone": bool(sample_data.get("allow_clone", True)),
-        "include_source": bool(sample_data.get("include_source", False)),
+        "include_source": include_source,
         "include_script": bool(sample_data.get("include_script", True)),
         "created_at": now,
         "updated_at": now,
         "pov_character": project.get("pov_character") or "",
         "llm_model": project.get("llm_model"),
-        "source_text": project.get("source_text") if sample_data.get("include_source") else "",
+        "source_text": project.get("source_text") if include_source else "",
         "result": project.get("result") if sample_data.get("include_script", True) else None,
     }
     path = _sample_path(sample_id)
@@ -347,7 +377,7 @@ def publish_sample(project_id: str, sample_data: dict[str, Any]) -> dict[str, An
     return sample
 
 
-def list_samples() -> list[dict[str, Any]]:
+def list_samples(*, viewer_id: str | None = None, include_all: bool = False) -> list[dict[str, Any]]:
     root = _sample_store_dir()
     if not root.exists():
         return []
@@ -357,13 +387,17 @@ def list_samples() -> list[dict[str, Any]]:
             sample = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
+        is_owner = bool(viewer_id) and sample.get("owner_id") == viewer_id
+        if not include_all and sample.get("visibility") != "public" and not is_owner:
+            continue
         payload = {key: sample.get(key) for key in (
-            "sample_id", "title", "description", "category", "cover", "visibility",
+            "sample_id", "owner_id", "title", "description", "category", "cover", "visibility",
             "allow_clone", "include_source", "include_script", "created_at", "updated_at",
             "pov_character", "llm_model",
         )}
         stats = (sample.get("result") or {}).get("stats") or {}
         payload["scene_count"] = stats.get("adaptation_scenes", 0)
+        payload["can_manage"] = is_owner
         samples.append(payload)
     return sorted(samples, key=lambda item: item.get("updated_at") or 0, reverse=True)
 
@@ -375,7 +409,46 @@ def get_sample(sample_id: str) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def clone_sample(sample_id: str) -> dict[str, Any]:
+def sample_access(sample_id: str) -> dict[str, Any]:
+    sample = get_sample(sample_id)
+    return {
+        "owner_id": str(sample.get("owner_id") or ""),
+        "visibility": "public" if sample.get("visibility") == "public" else "private",
+        "allow_clone": bool(sample.get("allow_clone", False)),
+    }
+
+
+def update_sample(sample_id: str, updates: dict[str, Any]) -> dict[str, Any]:
+    path = _sample_path(sample_id)
+    if not path.exists():
+        raise KeyError(sample_id)
+    with PROJECT_LOCK:
+        sample = json.loads(path.read_text(encoding="utf-8"))
+        clean_updates = {key: value for key, value in updates.items() if key in SAMPLE_EDITABLE_FIELDS}
+        if "visibility" in clean_updates:
+            clean_updates["visibility"] = "public" if clean_updates["visibility"] == "public" else "private"
+            if clean_updates["visibility"] == "public":
+                sample["include_source"] = False
+                sample["source_text"] = ""
+        sample.update(clean_updates)
+        sample["updated_at"] = time.time()
+        path.write_text(json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8")
+    return sample
+
+
+def assign_sample_owner(sample_id: str, owner_id: str) -> dict[str, Any]:
+    path = _sample_path(sample_id)
+    if not path.exists():
+        raise KeyError(sample_id)
+    with PROJECT_LOCK:
+        sample = json.loads(path.read_text(encoding="utf-8"))
+        sample["owner_id"] = owner_id
+        sample["updated_at"] = time.time()
+        path.write_text(json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8")
+    return sample
+
+
+def clone_sample(sample_id: str, *, owner_id: str = "") -> dict[str, Any]:
     sample = get_sample(sample_id)
     if not sample.get("allow_clone", False):
         raise PermissionError(sample_id)
@@ -386,6 +459,7 @@ def clone_sample(sample_id: str) -> dict[str, Any]:
         llm_model=sample.get("llm_model"),
         result=sample.get("result"),
         status="done" if sample.get("result") else "draft",
+        owner_id=owner_id,
     )
 
 
@@ -394,6 +468,37 @@ def delete_sample(sample_id: str) -> None:
     if not path.exists():
         raise KeyError(sample_id)
     path.unlink()
+
+
+def claim_legacy_content(owner_id: str) -> dict[str, int]:
+    claimed_projects = 0
+    claimed_samples = 0
+    root = _store_dir()
+    with PROJECT_LOCK:
+        if root.exists():
+            for path in root.glob("*/project.json"):
+                try:
+                    project = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    continue
+                if project.get("owner_id"):
+                    continue
+                project["owner_id"] = owner_id
+                path.write_text(json.dumps(project, ensure_ascii=False, indent=2), encoding="utf-8")
+                claimed_projects += 1
+        sample_root = _sample_store_dir()
+        if sample_root.exists():
+            for path in sample_root.glob("*.json"):
+                try:
+                    sample = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    continue
+                if sample.get("owner_id"):
+                    continue
+                sample["owner_id"] = owner_id
+                path.write_text(json.dumps(sample, ensure_ascii=False, indent=2), encoding="utf-8")
+                claimed_samples += 1
+    return {"projects": claimed_projects, "samples": claimed_samples}
 
 
 def _mark_chapter(

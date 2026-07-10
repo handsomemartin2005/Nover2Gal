@@ -1,20 +1,23 @@
-import { animeHeaderMarkup } from "/static/js/components/anime-header.js";
-import { motionController } from "/static/js/motion/motion-controller.js?v=20260710-folio4";
+import { animeHeaderMarkup } from "/static/js/components/anime-header.js?v=20260710-auth2";
+import { motionController } from "/static/js/motion/motion-controller.js?v=20260710-auth2";
 import { uiController } from "/static/js/components/ui-controller.js";
 import { commandPalette } from "/static/js/components/command-palette.js";
-import { ProjectSession } from "/static/js/project-session.js";
-import { initLandingPage } from "/static/js/pages/landing-page.js?v=20260710-folio4";
-import { initTemplatesPage } from "/static/js/pages/templates-page.js";
+import { ProjectSession } from "/static/js/project-session.js?v=20260710-auth2";
+import { initLandingPage } from "/static/js/pages/landing-page.js?v=20260710-auth2";
+import { initTemplatesPage } from "/static/js/pages/templates-page.js?v=20260710-auth2";
 import { initProjectsPage } from "/static/js/pages/projects-page.js";
+import { initAccountPage } from "/static/js/pages/account-page.js?v=20260710-auth2";
+import { initAdminPage } from "/static/js/pages/admin-page.js?v=20260710-auth2";
+import { hydrateAuthShell, loadCurrentUser } from "/static/js/auth-state.js?v=20260710-auth2";
 import { openPublishSample } from "/static/js/components/publish-sample.js";
 import { openExportCenter } from "/static/js/components/export-center.js";
 import { openVersionHistory } from "/static/js/components/version-history.js";
 import { openResourceCenter } from "/static/js/components/resource-center.js";
 import { openModal } from "/static/js/components/modal.js";
 import { showToast } from "/static/js/components/toast.js";
-import { api } from "/static/js/api-client.js";
+import { api } from "/static/js/api-client.js?v=20260710-auth2";
 
-window.__novel2galBuild = "20260710-folio4";
+window.__novel2galBuild = "20260710-auth2";
 window.__novel2galBootstrap = "started";
 window.addEventListener("error", (event) => {
   window.__novel2galError = `${event.message} @ ${event.filename}:${event.lineno}:${event.colno}`;
@@ -123,10 +126,13 @@ let restoringProject = false;
 let navigationLocked = false;
 
 async function navigateTo(path) {
-  const destination = new URL(path, window.location.origin);
+  let destination = new URL(path, window.location.origin);
   if (navigationLocked || `${window.location.pathname}${window.location.search}` === `${destination.pathname}${destination.search}`) return;
   navigationLocked = true;
   try {
+    if (["/create", "/studio", "/projects", "/admin"].includes(destination.pathname) && !await loadCurrentUser()) {
+      destination = new URL(`/account?next=${encodeURIComponent(`${destination.pathname}${destination.search}`)}`, window.location.origin);
+    }
     if (projectSession && ["dirty", "saving", "failed", "offline"].includes(projectSession.state)) {
       const saved = await saveCurrentProject();
       if (!saved && !window.confirm("当前项目尚未同步到服务器，确定离开并保留本地快照吗？")) return;
@@ -177,12 +183,17 @@ function renderRoute(path = window.location.pathname) {
     appRoot.innerHTML = templatesPageTemplate();
   } else if (routePath === "/projects") {
     appRoot.innerHTML = projectsPageTemplate();
+  } else if (routePath === "/account") {
+    appRoot.innerHTML = accountPageTemplate();
+  } else if (routePath === "/admin") {
+    appRoot.innerHTML = adminPageTemplate();
   } else {
     appRoot.innerHTML = landingPageTemplate();
   }
   bindRouteLinks(appRoot);
   uiController.mount(appRoot);
   motionController.mount(appRoot);
+  hydrateAuthShell(appRoot);
   initializeRouteFeatures(routePath, currentRouteVersion);
   window.scrollTo({ top: 0, behavior: motionController.reduced ? "auto" : "smooth" });
 }
@@ -191,6 +202,8 @@ function initializeRouteFeatures(path, currentRouteVersion) {
   if (path === "/") routeCleanups.push(initLandingPage(appRoot));
   if (path === "/templates") registerAsyncRouteCleanup(initTemplatesPage(appRoot), currentRouteVersion);
   if (path === "/projects") registerAsyncRouteCleanup(initProjectsPage(appRoot), currentRouteVersion);
+  if (path === "/account") registerAsyncRouteCleanup(initAccountPage(appRoot), currentRouteVersion);
+  if (path === "/admin") registerAsyncRouteCleanup(initAdminPage(appRoot), currentRouteVersion);
   if (path === "/create" || path === "/studio") initProjectSession();
   setupCommandPalette(path);
 }
@@ -401,8 +414,18 @@ function initWorkbench() {
   });
 }
 
-window.addEventListener("popstate", () => renderRoute(window.location.pathname));
-renderRoute();
+window.addEventListener("popstate", () => bootstrapRoute());
+bootstrapRoute();
+
+async function bootstrapRoute() {
+  const user = await loadCurrentUser();
+  const route = window.location.pathname;
+  if (["/create", "/studio", "/projects", "/admin"].includes(route) && !user) {
+    const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+    window.history.replaceState({}, "", `/account?next=${next}`);
+  }
+  renderRoute(window.location.pathname);
+}
 
 function landingPageTemplate() {
   return `
@@ -446,6 +469,12 @@ function landingPageTemplate() {
               <div class="folio-copy"><small>场景、角色与演出轨道</small><h2>进入制作室</h2><p>让对白、立绘与音乐在舞台汇合。</p><b>打开工作台 <i>→</i></b></div>
             </a>
           </div>
+          <nav class="folio-switcher" aria-label="切换功能信纸">
+            <button type="button" data-folio-switch="create"><span>01</span>新作</button>
+            <button type="button" data-folio-switch="recent"><span>02</span>续写</button>
+            <button type="button" data-folio-switch="templates"><span>03</span>范本</button>
+            <button type="button" data-folio-switch="studio"><span>04</span>制作</button>
+          </nav>
           <p class="folio-instruction"><span>悬停展开</span><i></i><span>点击翻页</span></p>
         </section>
 
@@ -505,6 +534,22 @@ function projectsPageTemplate() {
       </main>
     </section>
   `;
+}
+
+function accountPageTemplate() {
+  return `
+    <section class="anime-app identity-page">
+      ${animeHeaderMarkup("/account")}
+      <main id="mainContent" class="identity-main"><div id="accountContent" class="identity-loading"><span class="story-loader"></span><p>正在打开私人创作空间…</p></div></main>
+    </section>`;
+}
+
+function adminPageTemplate() {
+  return `
+    <section class="anime-app admin-page">
+      ${animeHeaderMarkup("/admin")}
+      <main id="mainContent" class="admin-main"><div id="adminContent" class="identity-loading"><span class="story-loader"></span><p>正在核对管理员权限…</p></div></main>
+    </section>`;
 }
 
 function workbenchPageTemplate() {
