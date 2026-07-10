@@ -5,9 +5,12 @@ export function initLandingPage(root) {
   const cards = [...root.querySelectorAll("[data-folio]")];
   const cleanups = [];
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "reduced";
+  let activeCard = null;
 
   const activate = (card) => {
     if (!deck || window.innerWidth < 760) return;
+    if (!card || !deck.contains(card)) return;
+    activeCard = card;
     deck.classList.add("is-exploded");
     deck.dataset.activeFolio = card.dataset.folio || "";
     cards.forEach((item) => item.classList.toggle("is-active", item === card));
@@ -15,6 +18,7 @@ export function initLandingPage(root) {
 
   const reset = () => {
     if (!deck) return;
+    activeCard = null;
     deck.classList.remove("is-exploded");
     delete deck.dataset.activeFolio;
     cards.forEach((item) => {
@@ -24,35 +28,42 @@ export function initLandingPage(root) {
     });
   };
 
-  cards.forEach((card) => {
-    const onEnter = () => activate(card);
-    const onFocus = () => activate(card);
+  if (deck) {
+    deck.dataset.folioReady = "true";
+    const cardFromEvent = (event) => event.target instanceof Element ? event.target.closest("[data-folio]") : null;
+    const onEnter = (event) => activate(cardFromEvent(event));
+    const onFocus = (event) => activate(cardFromEvent(event));
     const onMove = (event) => {
-      if (reduced || !card.classList.contains("is-active")) return;
-      const rect = card.getBoundingClientRect();
+      if (reduced || !activeCard) return;
+      const rect = activeCard.getBoundingClientRect();
       const tiltY = ((event.clientX - rect.left) / rect.width - .5) * 4;
       const tiltX = ((event.clientY - rect.top) / rect.height - .5) * -3;
-      card.style.setProperty("--tilt-x", `${tiltX.toFixed(2)}deg`);
-      card.style.setProperty("--tilt-y", `${tiltY.toFixed(2)}deg`);
+      activeCard.style.setProperty("--tilt-x", `${tiltX.toFixed(2)}deg`);
+      activeCard.style.setProperty("--tilt-y", `${tiltY.toFixed(2)}deg`);
     };
-    card.addEventListener("pointerenter", onEnter);
-    card.addEventListener("focus", onFocus);
-    card.addEventListener("pointermove", onMove);
-    cleanups.push(
-      () => card.removeEventListener("pointerenter", onEnter),
-      () => card.removeEventListener("focus", onFocus),
-      () => card.removeEventListener("pointermove", onMove),
-    );
-  });
-
-  if (deck) {
     const onLeave = () => reset();
     const onFocusOut = () => window.setTimeout(() => {
       if (!deck.contains(document.activeElement)) reset();
     }, 0);
+    deck.addEventListener("pointerover", onEnter);
+    deck.addEventListener("mouseover", onEnter);
+    deck.addEventListener("focusin", onFocus);
+    deck.addEventListener("pointermove", onMove);
+    deck.addEventListener("mousemove", onMove);
     deck.addEventListener("pointerleave", onLeave);
+    deck.addEventListener("mouseleave", onLeave);
     deck.addEventListener("focusout", onFocusOut);
-    cleanups.push(() => deck.removeEventListener("pointerleave", onLeave), () => deck.removeEventListener("focusout", onFocusOut));
+    cleanups.push(
+      () => deck.removeEventListener("pointerover", onEnter),
+      () => deck.removeEventListener("mouseover", onEnter),
+      () => deck.removeEventListener("focusin", onFocus),
+      () => deck.removeEventListener("pointermove", onMove),
+      () => deck.removeEventListener("mousemove", onMove),
+      () => deck.removeEventListener("pointerleave", onLeave),
+      () => deck.removeEventListener("mouseleave", onLeave),
+      () => deck.removeEventListener("focusout", onFocusOut),
+      () => delete deck.dataset.folioReady,
+    );
   }
 
   hydrateRecentProject(root).catch(() => {

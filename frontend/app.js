@@ -1,9 +1,9 @@
 import { animeHeaderMarkup } from "/static/js/components/anime-header.js";
-import { motionController } from "/static/js/motion/motion-controller.js";
+import { motionController } from "/static/js/motion/motion-controller.js?v=20260710-folio4";
 import { uiController } from "/static/js/components/ui-controller.js";
 import { commandPalette } from "/static/js/components/command-palette.js";
 import { ProjectSession } from "/static/js/project-session.js";
-import { initLandingPage } from "/static/js/pages/landing-page.js";
+import { initLandingPage } from "/static/js/pages/landing-page.js?v=20260710-folio4";
 import { initTemplatesPage } from "/static/js/pages/templates-page.js";
 import { initProjectsPage } from "/static/js/pages/projects-page.js";
 import { openPublishSample } from "/static/js/components/publish-sample.js";
@@ -14,6 +14,7 @@ import { openModal } from "/static/js/components/modal.js";
 import { showToast } from "/static/js/components/toast.js";
 import { api } from "/static/js/api-client.js";
 
+window.__novel2galBuild = "20260710-folio4";
 window.__novel2galBootstrap = "started";
 window.addEventListener("error", (event) => {
   window.__novel2galError = `${event.message} @ ${event.filename}:${event.lineno}:${event.colno}`;

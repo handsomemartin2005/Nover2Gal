@@ -702,7 +702,10 @@ body:has(.preview-panel:fullscreen) .project-status-bar { display: none; }
 @keyframes cover-rule-in { to { transform: scaleX(1); } }
 @keyframes cover-copy-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes cover-pointer { 50% { transform: translateX(5px); } }
-@keyframes folio-arrive { from { opacity: 0; translate: 120px 80px; } to { opacity: 1; translate: 0 0; } }
+@keyframes folio-arrive {
+  from { opacity: 0; transform: perspective(1400px) translate(120px,80px) rotate(var(--stack-r)); }
+  to { opacity: 1; transform: perspective(1400px) rotate(var(--stack-r)); }
+}
 
 @media (max-width: 1220px) {
   .cover-page { grid-template-columns: minmax(390px,.8fr) minmax(520px,1.2fr); gap: 8px; padding-inline: 42px; }

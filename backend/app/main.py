@@ -99,6 +99,12 @@ DEFAULT_MAX_PIPELINE_TEXT_CHARS = 1_200_000
 DEFAULT_MAX_PIPELINE_PROCESS_CHARS = 120_000
 PIPELINE_JOBS: dict[str, dict] = {}
 PIPELINE_JOB_LOCK = threading.Lock()
+INDEX_CACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "X-Novel2Gal-Build": "20260710-folio4",
+}
 
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -111,7 +117,7 @@ def health() -> dict[str, str]:
 
 @app.get("/")
 def frontend_index() -> FileResponse:
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(FRONTEND_DIR / "index.html", headers=INDEX_CACHE_HEADERS)
 
 
 @app.post("/api/pipeline/run")
@@ -498,4 +504,4 @@ def frontend_spa_fallback(full_path: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Not found")
     if full_path.strip("/") not in SPA_ROUTES:
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(FRONTEND_DIR / "index.html", headers=INDEX_CACHE_HEADERS)
