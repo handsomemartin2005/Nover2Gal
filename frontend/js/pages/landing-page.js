@@ -1,67 +1,80 @@
 import { api } from "/static/js/api-client.js";
 
-export async function initLandingPage(root) {
-  const stage = root.querySelector(".home-character-stage");
-  const dialogue = root.querySelector("[data-typewriter]");
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "reduced";
+export function initLandingPage(root) {
+  const deck = root.querySelector("#folioDeck");
+  const cards = [...root.querySelectorAll("[data-folio]")];
   const cleanups = [];
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "reduced";
 
-  if (stage) {
+  const activate = (card) => {
+    if (!deck || window.innerWidth < 760) return;
+    deck.classList.add("is-exploded");
+    deck.dataset.activeFolio = card.dataset.folio || "";
+    cards.forEach((item) => item.classList.toggle("is-active", item === card));
+  };
+
+  const reset = () => {
+    if (!deck) return;
+    deck.classList.remove("is-exploded");
+    delete deck.dataset.activeFolio;
+    cards.forEach((item) => {
+      item.classList.remove("is-active");
+      item.style.removeProperty("--tilt-x");
+      item.style.removeProperty("--tilt-y");
+    });
+  };
+
+  cards.forEach((card) => {
+    const onEnter = () => activate(card);
+    const onFocus = () => activate(card);
     const onMove = (event) => {
-      if (reduced || window.innerWidth < 768) return;
-      const rect = stage.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width - 0.5) * 6;
-      const y = ((event.clientY - rect.top) / rect.height - 0.5) * 4;
-      stage.style.setProperty("--parallax-x", `${x.toFixed(2)}px`);
-      stage.style.setProperty("--parallax-y", `${y.toFixed(2)}px`);
+      if (reduced || !card.classList.contains("is-active")) return;
+      const rect = card.getBoundingClientRect();
+      const tiltY = ((event.clientX - rect.left) / rect.width - .5) * 4;
+      const tiltX = ((event.clientY - rect.top) / rect.height - .5) * -3;
+      card.style.setProperty("--tilt-x", `${tiltX.toFixed(2)}deg`);
+      card.style.setProperty("--tilt-y", `${tiltY.toFixed(2)}deg`);
     };
-    const onLeave = () => {
-      stage.style.setProperty("--parallax-x", "0px");
-      stage.style.setProperty("--parallax-y", "0px");
-    };
-    stage.addEventListener("pointermove", onMove);
-    stage.addEventListener("pointerleave", onLeave);
-    cleanups.push(() => stage.removeEventListener("pointermove", onMove), () => stage.removeEventListener("pointerleave", onLeave));
+    card.addEventListener("pointerenter", onEnter);
+    card.addEventListener("focus", onFocus);
+    card.addEventListener("pointermove", onMove);
+    cleanups.push(
+      () => card.removeEventListener("pointerenter", onEnter),
+      () => card.removeEventListener("focus", onFocus),
+      () => card.removeEventListener("pointermove", onMove),
+    );
+  });
+
+  if (deck) {
+    const onLeave = () => reset();
+    const onFocusOut = () => window.setTimeout(() => {
+      if (!deck.contains(document.activeElement)) reset();
+    }, 0);
+    deck.addEventListener("pointerleave", onLeave);
+    deck.addEventListener("focusout", onFocusOut);
+    cleanups.push(() => deck.removeEventListener("pointerleave", onLeave), () => deck.removeEventListener("focusout", onFocusOut));
   }
 
-  if (dialogue && !reduced) {
-    const copy = dialogue.textContent.trim();
-    dialogue.textContent = "";
-    let index = 0;
-    const timer = window.setInterval(() => {
-      dialogue.textContent = copy.slice(0, ++index);
-      if (index >= copy.length) window.clearInterval(timer);
-    }, 34);
-    cleanups.push(() => window.clearInterval(timer));
-  }
-
-  try {
-    const response = await api.listProjects();
-    const latest = [...(response.projects || [])].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))[0];
-    if (latest) fillRecentProject(root, latest);
-  } catch (_) {
-    /* The first-run card remains useful while the backend is unavailable. */
-  }
+  hydrateRecentProject(root).catch(() => {
+    /* The archive entry remains useful while the project API is unavailable. */
+  });
 
   return () => cleanups.forEach((cleanup) => cleanup());
 }
 
-function fillRecentProject(root, project) {
-  const title = root.querySelector("[data-home-recent-title]");
-  const meta = root.querySelector("[data-home-recent-meta]");
-  const progress = root.querySelector("[data-home-recent-progress]");
-  const percent = root.querySelector("[data-home-recent-percent]");
-  const link = root.querySelector("[data-home-recent-link]");
-  const cover = root.querySelector("[data-home-recent-cover]");
-  const value = Number(project.progress || (project.has_result ? 100 : 0));
-  title.textContent = `《${project.title || "未命名企划"}》`;
-  meta.textContent = `${project.pov_character || "自动视角"} · ${project.scene_count || 0} 个场景 · ${relativeTime(project.updated_at)}`;
-  progress.style.width = `${Math.max(0, Math.min(100, value))}%`;
-  percent.textContent = `${value}%`;
-  link.textContent = "继续制作 →";
-  link.href = `/create?project_id=${encodeURIComponent(project.project_id)}`;
-  cover.classList.add("has-project");
-  cover.innerHTML = `<span>${String(project.scene_count || 0).padStart(2, "0")}</span><small>场景存档</small>`;
+async function hydrateRecentProject(root) {
+  const response = await api.listProjects();
+  const latest = [...(response.projects || [])].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))[0];
+  if (!latest) return;
+  const card = root.querySelector("[data-folio-recent]");
+  const title = root.querySelector("[data-folio-recent-title]");
+  const meta = root.querySelector("[data-folio-recent-meta]");
+  const action = root.querySelector("[data-folio-recent-action]");
+  if (!card || !title || !meta) return;
+  card.href = `/create?project_id=${encodeURIComponent(latest.project_id)}`;
+  title.textContent = `继续《${latest.title || "未命名企划"}》`;
+  meta.textContent = `${latest.scene_count || 0} 个场景 · ${relativeTime(latest.updated_at)}`;
+  if (action) action.innerHTML = "回到上次一幕 <i>→</i>";
 }
 
 function relativeTime(value) {

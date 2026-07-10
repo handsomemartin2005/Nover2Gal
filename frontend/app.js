@@ -73,13 +73,13 @@ const MODEL_DETAILS = {
 };
 const MIN_THINKING_MS = 1800;
 const LOCAL_FEMALE_PORTRAITS = [
-  "/static/assets/vendor/wata_female_18_stand_a.png",
-  "/static/assets/vendor/wata_female_19_stand_a.png",
-  "/static/assets/vendor/wata_female_20_stand_a.png",
+  "/static/assets/runtime/wata_female_18_stand_a.png",
+  "/static/assets/runtime/wata_female_19_stand_a.png",
+  "/static/assets/runtime/wata_female_20_stand_a.png",
 ];
 const LOCAL_MALE_PORTRAITS = [
-  "/static/assets/vendor/wata_male_15_stand_a.png",
-  "/static/assets/vendor/wata_male_16_stand_a.png",
+  "/static/assets/runtime/wata_male_15_stand_a.png",
+  "/static/assets/runtime/wata_male_16_stand_a.png",
 ];
 const CHARACTER_PORTRAITS = [...LOCAL_FEMALE_PORTRAITS, ...LOCAL_MALE_PORTRAITS];
 const ASSET_CATALOG = {
@@ -115,6 +115,7 @@ let thinkingStartedAt = 0;
 let projectSession = null;
 let currentProject = null;
 let routeCleanups = [];
+let routeVersion = 0;
 let latestResult = null;
 let restoringProject = false;
 
@@ -124,19 +125,23 @@ async function navigateTo(path) {
   const destination = new URL(path, window.location.origin);
   if (navigationLocked || `${window.location.pathname}${window.location.search}` === `${destination.pathname}${destination.search}`) return;
   navigationLocked = true;
-  if (projectSession && ["dirty", "saving", "failed", "offline"].includes(projectSession.state)) {
-    const saved = await saveCurrentProject();
-    if (!saved && !window.confirm("当前项目尚未同步到服务器，确定离开并保留本地快照吗？")) {
-      navigationLocked = false;
-      return;
+  try {
+    if (projectSession && ["dirty", "saving", "failed", "offline"].includes(projectSession.state)) {
+      const saved = await saveCurrentProject();
+      if (!saved && !window.confirm("当前项目尚未同步到服务器，确定离开并保留本地快照吗？")) return;
     }
+    await motionController.leave(appRoot, destination.pathname);
+    if (`${window.location.pathname}${window.location.search}` !== `${destination.pathname}${destination.search}`) {
+      window.history.pushState({}, "", `${destination.pathname}${destination.search}`);
+    }
+    renderRoute(destination.pathname);
+  } catch (error) {
+    motionController.cancelPendingOverlay();
+    console.error("Route navigation failed", error);
+    window.location.assign(destination.href);
+  } finally {
+    navigationLocked = false;
   }
-  await motionController.leave(appRoot, destination.pathname);
-  if (`${window.location.pathname}${window.location.search}` !== `${destination.pathname}${destination.search}`) {
-    window.history.pushState({}, "", `${destination.pathname}${destination.search}`);
-  }
-  renderRoute(destination.pathname);
-  navigationLocked = false;
 }
 
 function bindRouteLinks(root = document) {
@@ -150,7 +155,10 @@ function bindRouteLinks(root = document) {
 
 function renderRoute(path = window.location.pathname) {
   const routePath = new URL(path, window.location.origin).pathname;
-  routeCleanups.splice(0).forEach((cleanup) => cleanup?.());
+  const currentRouteVersion = ++routeVersion;
+  routeCleanups.splice(0).forEach((cleanup) => {
+    if (typeof cleanup === "function") cleanup();
+  });
   projectSession?.destroy();
   projectSession = null;
   currentProject = null;
@@ -174,16 +182,24 @@ function renderRoute(path = window.location.pathname) {
   bindRouteLinks(appRoot);
   uiController.mount(appRoot);
   motionController.mount(appRoot);
-  initializeRouteFeatures(routePath);
+  initializeRouteFeatures(routePath, currentRouteVersion);
   window.scrollTo({ top: 0, behavior: motionController.reduced ? "auto" : "smooth" });
 }
 
-function initializeRouteFeatures(path) {
+function initializeRouteFeatures(path, currentRouteVersion) {
   if (path === "/") routeCleanups.push(initLandingPage(appRoot));
-  if (path === "/templates") Promise.resolve(initTemplatesPage(appRoot)).then((cleanup) => cleanup && routeCleanups.push(cleanup));
-  if (path === "/projects") Promise.resolve(initProjectsPage(appRoot)).then((cleanup) => cleanup && routeCleanups.push(cleanup));
+  if (path === "/templates") registerAsyncRouteCleanup(initTemplatesPage(appRoot), currentRouteVersion);
+  if (path === "/projects") registerAsyncRouteCleanup(initProjectsPage(appRoot), currentRouteVersion);
   if (path === "/create" || path === "/studio") initProjectSession();
   setupCommandPalette(path);
+}
+
+function registerAsyncRouteCleanup(initializer, currentRouteVersion) {
+  Promise.resolve(initializer).then((cleanup) => {
+    if (typeof cleanup !== "function") return;
+    if (currentRouteVersion === routeVersion) routeCleanups.push(cleanup);
+    else cleanup();
+  });
 }
 
 function resetWorkbenchDom() {
@@ -389,53 +405,50 @@ renderRoute();
 
 function landingPageTemplate() {
   return `
-    <section class="landing-page editorial-home">
+    <section class="landing-page artistic-cover">
       ${animeHeaderMarkup("/")}
-      <main id="mainContent" class="home-editorial" aria-label="Novel2Gal 创作入口">
-        <section class="home-hero" data-reveal>
-          <article class="home-main-feature">
-            <div class="home-copy">
-              <span class="chapter-ribbon">第一幕 · 小说开始登场</span>
-              <h1>让文字成为<br /><em>可以登场的故事</em></h1>
-              <p class="home-lead">从核心人物的目光出发，把小说编排成可编辑、可预览、可导出的视觉小说。</p>
-              <div class="home-actions">
-                <a class="anime-button anime-button--primary" href="/create?new=1" data-route>开始新作品 <i>→</i></a>
-                <a class="anime-button anime-button--ghost" href="/templates" data-route>从模板开始</a>
-              </div>
-              <div class="home-dialogue" aria-label="角色对白">
-                <strong>小凪</strong>
-                <p data-typewriter>把熟悉的句子交给我吧。这一次，我们让它在舞台上被听见。</p>
-                <span aria-hidden="true">▼</span>
-              </div>
-            </div>
-            <div class="home-character-stage" aria-hidden="true">
-              <div class="story-sheet story-sheet--back"><span>SCENE 01</span></div>
-              <div class="story-sheet story-sheet--front"><i></i><i></i><i></i><i></i></div>
-              <img src="/static/assets/vendor/wata_female_20_stand_a.png" alt="" />
-              <span class="character-caption">品牌角色 · 小凪</span>
-            </div>
-          </article>
-          <aside class="home-side">
-            <article id="homeRecentProject" class="home-side-card home-recent">
-              <header><span class="paper-tab">最近项目</span><a href="/projects" data-route>全部存档</a></header>
-              <div class="recent-cover" data-home-recent-cover><span>尚无存档</span></div>
-              <h2 data-home-recent-title>从第一部作品开始</h2>
-              <p data-home-recent-meta>导入小说，建立角色与场景。</p>
-              <div class="recent-progress"><span><i data-home-recent-progress></i></span><small data-home-recent-percent>0%</small></div>
-              <a class="text-action" href="/create?new=1" data-route data-home-recent-link>新建作品 →</a>
-            </article>
-            <article class="home-side-card home-recommend">
-              <span class="paper-tab paper-tab--gold">本日推荐</span>
-              <div class="recommend-cover" aria-hidden="true"><span>雨</span><i></i></div>
-              <div><small>日常治愈 · 7 个场景</small><h2>雨后的便利店</h2><p>适合练习慢节奏对白与人物关系推进。</p></div>
-              <a class="text-action" href="/templates" data-route>翻开模板 →</a>
-            </article>
-          </aside>
+      <main id="mainContent" class="cover-page" aria-label="Novel2Gal 扉页">
+        <div class="cover-watermark" aria-hidden="true">N<span>2</span>G</div>
+        <section class="cover-intro" data-reveal>
+          <span class="cover-volume">Novel2Gal · 第一卷</span>
+          <p class="cover-overline">轻小说改编与视觉小说排演室</p>
+          <h1 aria-label="让文字成为可以登场的故事">
+            <span class="cover-title-line">让文字成为</span>
+            <span class="cover-title-line"><em>可以登场</em>的故事</span>
+          </h1>
+          <p class="cover-note">一段文字，一束追光，一次重新被听见的机会。</p>
+          <div class="cover-prompt"><i></i><span>把光标移向右侧信纸，翻开你的下一幕</span></div>
         </section>
-        <section class="home-workflow" aria-label="创作流程">
-          <header><span>一册小说，四步登台</span><p>每一步都能查看、修改并保存版本。</p></header>
-          <ol><li><b>01</b><strong>导入原作</strong><span>TXT · Markdown · EPUB</span></li><li><b>02</b><strong>整理角色</strong><span>视角 · 关系 · 记忆</span></li><li><b>03</b><strong>排演场景</strong><span>对白 · 立绘 · 音乐</span></li><li><b>04</b><strong>导出作品</strong><span>Ren'Py · JSON · 台本</span></li></ol>
+
+        <section class="folio-stage" aria-label="主要功能信纸">
+          <div class="folio-orbit folio-orbit--one" aria-hidden="true"></div>
+          <div class="folio-orbit folio-orbit--two" aria-hidden="true"></div>
+          <div id="folioDeck" class="folio-deck">
+            <a class="folio-letter folio-letter--create" href="/create?new=1" data-route data-folio="create" style="--stack-left:20px;--stack-top:54px;--stack-r:-11deg;--stack-z:1;--scatter-x:-760px;--scatter-y:-120px;--scatter-r:-26deg">
+              <span class="folio-number">01</span><span class="folio-tab">新作</span>
+              <div class="folio-art" style="--folio-art:url('/static/assets/editorial/campus-rooftop.webp')"></div>
+              <div class="folio-copy"><small>从空白台本开始</small><h2>写下第一幕</h2><p>导入小说，选择目光所及的人。</p><b>开始新作品 <i>→</i></b></div>
+            </a>
+            <a class="folio-letter folio-letter--recent" href="/projects" data-route data-folio="recent" data-folio-recent style="--stack-left:76px;--stack-top:32px;--stack-r:-4deg;--stack-z:2;--scatter-x:680px;--scatter-y:-320px;--scatter-r:24deg">
+              <span class="folio-number">02</span><span class="folio-tab">续写</span>
+              <div class="folio-art" style="--folio-art:url('/static/assets/editorial/rain-convenience.webp')"></div>
+              <div class="folio-copy"><small data-folio-recent-meta>作品存档与历史版本</small><h2 data-folio-recent-title>继续上次排演</h2><p>从保存的那一句对白继续。</p><b data-folio-recent-action>打开作品存档 <i>→</i></b></div>
+            </a>
+            <a class="folio-letter folio-letter--templates" href="/templates" data-route data-folio="templates" style="--stack-left:132px;--stack-top:38px;--stack-r:5deg;--stack-z:3;--scatter-x:-690px;--scatter-y:470px;--scatter-r:31deg">
+              <span class="folio-number">03</span><span class="folio-tab">范本</span>
+              <div class="folio-art" style="--folio-art:url('/static/assets/editorial/moonlit-forest.webp')"></div>
+              <div class="folio-copy"><small>完整场景与分支范式</small><h2>翻阅模板书架</h2><p>借一部作品的骨架，写自己的故事。</p><b>进入模板图书馆 <i>→</i></b></div>
+            </a>
+            <a class="folio-letter folio-letter--studio" href="/create" data-route data-folio="studio" style="--stack-left:188px;--stack-top:62px;--stack-r:12deg;--stack-z:4;--scatter-x:780px;--scatter-y:430px;--scatter-r:-28deg">
+              <span class="folio-number">04</span><span class="folio-tab">制作</span>
+              <div class="folio-art" style="--folio-art:url('/static/assets/editorial/old-school-recorder.webp')"></div>
+              <div class="folio-copy"><small>场景、角色与演出轨道</small><h2>进入制作室</h2><p>让对白、立绘与音乐在舞台汇合。</p><b>打开工作台 <i>→</i></b></div>
+            </a>
+          </div>
+          <p class="folio-instruction"><span>悬停展开</span><i></i><span>点击翻页</span></p>
         </section>
+
+        <footer class="cover-footer"><span>轻小说编辑部 × Galgame 制作软件</span><span>卷一 · 故事获得声音之前</span></footer>
       </main>
     </section>
   `;
@@ -1231,7 +1244,7 @@ function parseMaxScenes(value) {
 
 async function loadExternalAssets() {
   try {
-    const response = await fetch("/static/assets/asset_manifest.json?v=20260709-assets-expanded");
+    const response = await fetch("/static/assets/asset_manifest.json?v=20260710-runtime");
     if (!response.ok) return;
     const payload = await response.json();
     externalAssetCatalog = {
@@ -1250,7 +1263,8 @@ function localizeAssets(items) {
   return items.filter((asset) => asset?.id && asset?.url).map((asset) => {
     const pathname = new URL(asset.url, window.location.origin).pathname;
     const extension = pathname.includes(".") ? pathname.slice(pathname.lastIndexOf(".")) : ".bin";
-    return { ...asset, url: `/static/assets/vendor/${asset.id}${extension}` };
+    const directory = ["background", "portrait"].includes(asset.type) ? "runtime" : "vendor";
+    return { ...asset, url: `/static/assets/${directory}/${asset.id}${extension}` };
   });
 }
 
@@ -1774,6 +1788,10 @@ function renderStage(frame) {
     portrait.src = characterPortrait(name, index, usedPortraits);
     portrait.alt = displayCharacterName(name);
     portrait.loading = "lazy";
+    portrait.addEventListener("error", () => {
+      portrait.hidden = true;
+      node.classList.add("portrait-missing");
+    }, { once: true });
     const label = document.createElement("span");
     label.textContent = displayCharacterName(name);
     node.append(portrait, label);

@@ -1,6 +1,7 @@
 class MotionController {
   constructor() {
     this.cleanups = [];
+    this.pendingOverlay = null;
     this.media = window.matchMedia("(prefers-reduced-motion: reduce)");
     this.syncLevel();
     this.onMotionChange = () => this.syncLevel();
@@ -18,8 +19,11 @@ class MotionController {
 
   mount(root) {
     this.syncLevel();
+    root.getAnimations().forEach((animation) => animation.cancel());
+    root.style.removeProperty("opacity");
     root.classList.remove("route-enter");
     requestAnimationFrame(() => root.classList.add("route-enter"));
+    this.revealPendingOverlay();
     if (this.reduced) return;
 
     root.querySelectorAll(".anime-button, .icon-button, .landing-button").forEach((button) => {
@@ -39,18 +43,34 @@ class MotionController {
 
   async leave(root, destination = "") {
     if (this.reduced || !root.firstElementChild) return;
+    this.cancelPendingOverlay();
     const label = ({ "/create": "制作室", "/templates": "模板书架", "/projects": "作品存档", "/": "卷首" })[destination] || "下一幕";
     const overlay = document.createElement("div");
     overlay.className = "route-curtain";
     overlay.innerHTML = `<span>${label}</span><i></i>`;
     document.body.append(overlay);
-    const fade = root.animate([{ opacity: 1 }, { opacity: .12 }], { duration: 260, easing: "ease-out", fill: "forwards" });
     const cover = overlay.animate([{ clipPath: "inset(100% 0 0 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 480, easing: "cubic-bezier(.16,1,.3,1)", fill: "forwards" });
-    try { await Promise.all([fade.finished, cover.finished]); } catch (_) { /* navigation superseded */ }
-    window.setTimeout(() => {
-      const reveal = overlay.animate([{ clipPath: "inset(0 0 0 0)" }, { clipPath: "inset(0 0 100% 0)" }], { duration: 420, delay: 60, easing: "cubic-bezier(.16,1,.3,1)", fill: "forwards" });
-      reveal.finished.finally(() => overlay.remove());
-    }, 20);
+    try { await cover.finished; } catch (_) { /* navigation superseded */ }
+    this.pendingOverlay = overlay;
+  }
+
+  revealPendingOverlay() {
+    const overlay = this.pendingOverlay;
+    if (!overlay) return;
+    this.pendingOverlay = null;
+    requestAnimationFrame(() => {
+      const reveal = overlay.animate(
+        [{ clipPath: "inset(0 0 0 0)" }, { clipPath: "inset(0 0 100% 0)" }],
+        { duration: 460, delay: 80, easing: "cubic-bezier(.16,1,.3,1)", fill: "forwards" },
+      );
+      reveal.finished.catch(() => {}).finally(() => overlay.remove());
+    });
+  }
+
+  cancelPendingOverlay() {
+    this.pendingOverlay?.remove();
+    this.pendingOverlay = null;
+    document.querySelectorAll(".route-curtain").forEach((overlay) => overlay.remove());
   }
 
   unmount() {

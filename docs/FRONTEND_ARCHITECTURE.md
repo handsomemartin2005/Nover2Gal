@@ -4,7 +4,7 @@
 
 | 路径 | 职责 |
 | --- | --- |
-| `/` | 非对称创作首页、最近项目与推荐模板 |
+| `/` | 艺术化卷首首页；四封螺旋叠放的功能信纸与最近项目入口 |
 | `/create` | Galgame Studio；无参数时恢复最近项目 |
 | `/create?new=1` | 创建全新企划，不自动恢复最近项目 |
 | `/create?project_id=<id>` | 加载指定项目并恢复剧本、表单与舞台 |
@@ -68,10 +68,10 @@ DELETE /api/samples/{id}
 
 ## 素材
 
-首页插画替换方法见根目录 `ASSETS_GUIDE.md`。素材清单里的远程 URL 仅用于来源记录和下载，运行时映射到：
+首页插画替换方法见根目录 `ASSETS_GUIDE.md`。素材清单里的远程 URL 仅用于来源记录和下载。背景和立绘使用随部署制品发布的运行时副本：
 
 ```text
-/static/assets/vendor/<asset-id>.<extension>
+/static/assets/runtime/<asset-id>.<extension>
 ```
 
 部署前按许可运行：
@@ -80,7 +80,7 @@ DELETE /api/samples/{id}
 powershell -ExecutionPolicy Bypass -File .\tools\download_assets.ps1
 ```
 
-缺少第三方素材时，舞台使用 CSS 渐变和结构化道具降级，不请求远程热链。
+音频等非图像素材仍从 `/static/assets/vendor/` 读取。缺少第三方素材时，舞台使用 CSS 渐变、结构化道具和人物剪影降级，不请求远程热链。
 
 ## 本地运行
 
@@ -106,7 +106,7 @@ location / {
 
 如果 Nginx 独立托管前端，只允许 `/`、`/create`、`/templates`、`/projects` fallback 到 `index.html`。`/api/` 必须反向代理，`/static/` 必须真实返回文件或 404，不能统一 fallback。
 
-第三方素材目录默认被 Git 忽略；构建生产包时必须确认 `frontend/assets/vendor/` 已按许可加入部署制品。项目存储目录需要持久卷和写权限，可通过 `PROJECT_STORE_DIR` 与 `SAMPLE_STORE_DIR` 指定。
+第三方原始素材目录默认被 Git 忽略；背景和立绘的部署副本位于已跟踪的 `frontend/assets/runtime/`。若启用 BGM，构建生产包时还需确认所需 `frontend/assets/vendor/` 音频已按许可加入部署制品。项目存储目录需要持久卷和写权限，可通过 `PROJECT_STORE_DIR` 与 `SAMPLE_STORE_DIR` 指定。
 
 ## 人工验收
 
