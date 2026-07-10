@@ -2,6 +2,8 @@
 
 `asset_manifest.json` is a tag index for backgrounds, portraits, and BGM used by the browser preview.
 
+`procurement_catalog.json` is the reviewed discovery catalog shown in the resource center. It separates CC0 bundle candidates from catalog-only items that require purchase or explicit platform redistribution permission.
+
 Third-party source files are intentionally not committed. Many free-material sites allow use inside games or videos but do not allow redistribution of raw material packs. Keep downloaded files under `frontend/assets/vendor/`, which is ignored by git.
 
 Current sources:

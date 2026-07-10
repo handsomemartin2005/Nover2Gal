@@ -1,5 +1,5 @@
-import { api } from "/static/js/api-client.js?v=20260710-auth3";
-import { getCurrentUser } from "/static/js/auth-state.js?v=20260710-auth3";
+import { api } from "/static/js/api-client.js?v=20260710-auth6";
+import { getCurrentUser } from "/static/js/auth-state.js?v=20260710-auth6";
 
 export function initLandingPage(root) {
   const deck = root.querySelector("#folioDeck");

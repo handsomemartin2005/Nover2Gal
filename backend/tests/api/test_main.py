@@ -95,7 +95,7 @@ class MainAPITest(unittest.TestCase):
         self.assertNotIn('id="pipelineForm"', index_response.text)
         self.assertNotIn('id="gamePreview"', index_response.text)
         self.assertEqual(index_response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
-        self.assertEqual(index_response.headers["x-novel2gal-build"], "20260710-auth3")
+        self.assertEqual(index_response.headers["x-novel2gal-build"], "20260710-auth6")
         self.assertEqual(create_response.status_code, 200)
         self.assertIn('id="appRoot"', create_response.text)
         self.assertEqual(create_response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")

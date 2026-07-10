@@ -1,4 +1,4 @@
-import { api } from "/static/js/api-client.js?v=20260710-auth3";
+import { api } from "/static/js/api-client.js?v=20260710-auth6";
 
 const DB_NAME = "novel2gal-studio";
 const DB_VERSION = 1;

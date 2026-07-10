@@ -487,7 +487,7 @@ body:has(.preview-panel:fullscreen) .project-status-bar { display: none; }
 @media (max-width: 980px) {
   .project-status-bar { position: relative; top: 0; grid-template-columns: 1fr auto; }
   .status-cluster { display: none; }
-  .workspace-mobile-tabs { display: grid; grid-template-columns: repeat(4,1fr); position: sticky; z-index: 55; top: 62px; border-bottom: 1px solid rgba(244,238,230,.1); }
+  .workspace-mobile-tabs { display: grid; grid-template-columns: repeat(5,1fr); position: sticky; z-index: 55; top: 62px; border-bottom: 1px solid rgba(244,238,230,.1); }
   .workspace-mobile-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px; color: var(--text-muted); background: #11172a; }
   .workspace-mobile-tabs button.active { border-bottom-color: #f07896; color: var(--text-main); }
   .workspace { display: block; padding: 10px; }

@@ -1,23 +1,23 @@
-import { animeHeaderMarkup } from "/static/js/components/anime-header.js?v=20260710-auth3";
-import { motionController } from "/static/js/motion/motion-controller.js?v=20260710-auth3";
+import { animeHeaderMarkup } from "/static/js/components/anime-header.js?v=20260710-auth6";
+import { motionController } from "/static/js/motion/motion-controller.js?v=20260710-auth6";
 import { uiController } from "/static/js/components/ui-controller.js";
 import { commandPalette } from "/static/js/components/command-palette.js";
-import { ProjectSession } from "/static/js/project-session.js?v=20260710-auth3";
-import { initLandingPage } from "/static/js/pages/landing-page.js?v=20260710-auth3";
-import { initTemplatesPage } from "/static/js/pages/templates-page.js?v=20260710-auth3";
+import { ProjectSession } from "/static/js/project-session.js?v=20260710-auth6";
+import { initLandingPage } from "/static/js/pages/landing-page.js?v=20260710-auth6";
+import { initTemplatesPage } from "/static/js/pages/templates-page.js?v=20260710-auth6";
 import { initProjectsPage } from "/static/js/pages/projects-page.js";
-import { initAccountPage } from "/static/js/pages/account-page.js?v=20260710-auth3";
-import { initAdminPage } from "/static/js/pages/admin-page.js?v=20260710-auth3";
-import { hydrateAuthShell, loadCurrentUser } from "/static/js/auth-state.js?v=20260710-auth3";
+import { initAccountPage } from "/static/js/pages/account-page.js?v=20260710-auth6";
+import { initAdminPage } from "/static/js/pages/admin-page.js?v=20260710-auth6";
+import { hydrateAuthShell, loadCurrentUser } from "/static/js/auth-state.js?v=20260710-auth6";
 import { openPublishSample } from "/static/js/components/publish-sample.js";
 import { openExportCenter } from "/static/js/components/export-center.js";
 import { openVersionHistory } from "/static/js/components/version-history.js";
-import { openResourceCenter } from "/static/js/components/resource-center.js";
+import { openResourceCenter } from "/static/js/components/resource-center.js?v=20260710-procurement1";
 import { openModal } from "/static/js/components/modal.js";
 import { showToast } from "/static/js/components/toast.js";
-import { api } from "/static/js/api-client.js?v=20260710-auth3";
+import { api } from "/static/js/api-client.js?v=20260710-auth6";
 
-window.__novel2galBuild = "20260710-auth3";
+window.__novel2galBuild = "20260710-auth6";
 window.__novel2galBootstrap = "started";
 window.addEventListener("error", (event) => {
   window.__novel2galError = `${event.message} @ ${event.filename}:${event.lineno}:${event.colno}`;
@@ -577,7 +577,7 @@ function workbenchPageTemplate() {
       </section>
 
       <nav class="workspace-mobile-tabs" aria-label="工作台区域">
-        <button class="active" type="button" data-workspace-tab="setup">场景</button><button type="button" data-workspace-tab="stage">舞台</button><button type="button" data-workspace-tab="script">演出</button><button type="button" data-workspace-tab="memory">资料</button>
+        <button class="active" type="button" data-workspace-tab="setup">场景</button><button type="button" data-workspace-tab="stage">舞台</button><button type="button" data-workspace-tab="script">演出</button><button type="button" data-workspace-tab="memory">资料</button><button id="mobileResourceCenterButton" type="button">素材</button>
       </nav>
 
       <section id="mainContent" class="workspace">
@@ -879,6 +879,7 @@ function bindWorkspaceActions() {
   const exportButton = document.querySelector("#exportProjectButton");
   const historyButton = document.querySelector("#versionHistoryButton");
   const resourceButton = document.querySelector("#resourceCenterButton");
+  const mobileResourceButton = document.querySelector("#mobileResourceCenterButton");
   const previewButton = document.querySelector("#previewProjectButton");
   const workspacePage = document.querySelector(".workspace-page");
   const openSettings = document.querySelector("#openProjectSettings");
@@ -895,7 +896,9 @@ function bindWorkspaceActions() {
     if (project) openExportCenter(project);
   });
   historyButton?.addEventListener("click", () => openVersionHistory(projectSession?.projectId, { onRollback: hydrateProject }));
-  resourceButton?.addEventListener("click", async () => openResourceCenter(currentProject || await saveCurrentProject()));
+  const showResources = async () => openResourceCenter(currentProject || await saveCurrentProject());
+  resourceButton?.addEventListener("click", showResources);
+  mobileResourceButton?.addEventListener("click", showResources);
   previewButton?.addEventListener("click", () => document.querySelector("#gamePreview")?.requestFullscreen?.());
   openSettings?.addEventListener("click", () => toggleSettings(true));
   closeSettings?.addEventListener("click", () => toggleSettings(false));
