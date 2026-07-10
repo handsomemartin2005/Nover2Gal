@@ -1263,8 +1263,7 @@ function localizeAssets(items) {
   return items.filter((asset) => asset?.id && asset?.url).map((asset) => {
     const pathname = new URL(asset.url, window.location.origin).pathname;
     const extension = pathname.includes(".") ? pathname.slice(pathname.lastIndexOf(".")) : ".bin";
-    const directory = ["background", "portrait"].includes(asset.type) ? "runtime" : "vendor";
-    return { ...asset, url: `/static/assets/${directory}/${asset.id}${extension}` };
+    return { ...asset, url: `/static/assets/runtime/${asset.id}${extension}` };
   });
 }
 

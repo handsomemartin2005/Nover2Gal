@@ -68,7 +68,7 @@ DELETE /api/samples/{id}
 
 ## 素材
 
-首页插画替换方法见根目录 `ASSETS_GUIDE.md`。素材清单里的远程 URL 仅用于来源记录和下载。背景和立绘使用随部署制品发布的运行时副本：
+首页插画替换方法见根目录 `ASSETS_GUIDE.md`。素材清单里的远程 URL 仅用于来源记录和下载。背景、立绘和 BGM 使用随部署制品发布的运行时副本：
 
 ```text
 /static/assets/runtime/<asset-id>.<extension>
@@ -80,7 +80,7 @@ DELETE /api/samples/{id}
 powershell -ExecutionPolicy Bypass -File .\tools\download_assets.ps1
 ```
 
-音频等非图像素材仍从 `/static/assets/vendor/` 读取。缺少第三方素材时，舞台使用 CSS 渐变、结构化道具和人物剪影降级，不请求远程热链。
+缺少第三方素材时，舞台使用 CSS 渐变、结构化道具和人物剪影降级，不请求远程热链。
 
 ## 本地运行
 
@@ -106,7 +106,7 @@ location / {
 
 如果 Nginx 独立托管前端，只允许 `/`、`/create`、`/templates`、`/projects` fallback 到 `index.html`。`/api/` 必须反向代理，`/static/` 必须真实返回文件或 404，不能统一 fallback。
 
-第三方原始素材目录默认被 Git 忽略；背景和立绘的部署副本位于已跟踪的 `frontend/assets/runtime/`。若启用 BGM，构建生产包时还需确认所需 `frontend/assets/vendor/` 音频已按许可加入部署制品。项目存储目录需要持久卷和写权限，可通过 `PROJECT_STORE_DIR` 与 `SAMPLE_STORE_DIR` 指定。
+第三方原始素材目录默认被 Git 忽略；背景、立绘和 BGM 的部署副本位于已跟踪的 `frontend/assets/runtime/`。项目存储目录需要持久卷和写权限，可通过 `PROJECT_STORE_DIR` 与 `SAMPLE_STORE_DIR` 指定。
 
 ## 人工验收
 

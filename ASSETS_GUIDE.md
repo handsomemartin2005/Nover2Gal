@@ -26,7 +26,7 @@
 
 ## 舞台素材
 
-角色立绘和场景背景的部署副本保存在 `frontend/assets/runtime/`，来源与许可记录位于 `frontend/assets/asset_manifest.json`。远程 URL 仅用于记录和下载；前端运行时解析为：
+角色立绘、场景背景和 BGM 的部署副本保存在 `frontend/assets/runtime/`，来源与许可记录位于 `frontend/assets/asset_manifest.json`。远程 URL 仅用于记录和下载；前端运行时解析为：
 
 ```text
 /static/assets/runtime/<asset-id>.<extension>
