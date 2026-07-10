@@ -1,23 +1,23 @@
-import { animeHeaderMarkup } from "/static/js/components/anime-header.js?v=20260710-auth2";
-import { motionController } from "/static/js/motion/motion-controller.js?v=20260710-auth2";
+import { animeHeaderMarkup } from "/static/js/components/anime-header.js?v=20260710-auth3";
+import { motionController } from "/static/js/motion/motion-controller.js?v=20260710-auth3";
 import { uiController } from "/static/js/components/ui-controller.js";
 import { commandPalette } from "/static/js/components/command-palette.js";
-import { ProjectSession } from "/static/js/project-session.js?v=20260710-auth2";
-import { initLandingPage } from "/static/js/pages/landing-page.js?v=20260710-auth2";
-import { initTemplatesPage } from "/static/js/pages/templates-page.js?v=20260710-auth2";
+import { ProjectSession } from "/static/js/project-session.js?v=20260710-auth3";
+import { initLandingPage } from "/static/js/pages/landing-page.js?v=20260710-auth3";
+import { initTemplatesPage } from "/static/js/pages/templates-page.js?v=20260710-auth3";
 import { initProjectsPage } from "/static/js/pages/projects-page.js";
-import { initAccountPage } from "/static/js/pages/account-page.js?v=20260710-auth2";
-import { initAdminPage } from "/static/js/pages/admin-page.js?v=20260710-auth2";
-import { hydrateAuthShell, loadCurrentUser } from "/static/js/auth-state.js?v=20260710-auth2";
+import { initAccountPage } from "/static/js/pages/account-page.js?v=20260710-auth3";
+import { initAdminPage } from "/static/js/pages/admin-page.js?v=20260710-auth3";
+import { hydrateAuthShell, loadCurrentUser } from "/static/js/auth-state.js?v=20260710-auth3";
 import { openPublishSample } from "/static/js/components/publish-sample.js";
 import { openExportCenter } from "/static/js/components/export-center.js";
 import { openVersionHistory } from "/static/js/components/version-history.js";
 import { openResourceCenter } from "/static/js/components/resource-center.js";
 import { openModal } from "/static/js/components/modal.js";
 import { showToast } from "/static/js/components/toast.js";
-import { api } from "/static/js/api-client.js?v=20260710-auth2";
+import { api } from "/static/js/api-client.js?v=20260710-auth3";
 
-window.__novel2galBuild = "20260710-auth2";
+window.__novel2galBuild = "20260710-auth3";
 window.__novel2galBootstrap = "started";
 window.addEventListener("error", (event) => {
   window.__novel2galError = `${event.message} @ ${event.filename}:${event.lineno}:${event.colno}`;

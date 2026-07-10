@@ -1,4 +1,5 @@
-import { api } from "/static/js/api-client.js?v=20260710-auth2";
+import { api } from "/static/js/api-client.js?v=20260710-auth3";
+import { getCurrentUser } from "/static/js/auth-state.js?v=20260710-auth3";
 
 export function initLandingPage(root) {
   const deck = root.querySelector("#folioDeck");
@@ -91,6 +92,7 @@ export function initLandingPage(root) {
 }
 
 async function hydrateRecentProject(root) {
+  if (!getCurrentUser()) return;
   const response = await api.listProjects();
   const latest = [...(response.projects || [])].sort((a, b) => (b.updated_at || 0) - (a.updated_at || 0))[0];
   if (!latest) return;

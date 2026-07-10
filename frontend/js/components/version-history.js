@@ -1,4 +1,4 @@
-import { api } from "/static/js/api-client.js?v=20260710-auth2";
+import { api } from "/static/js/api-client.js?v=20260710-auth3";
 import { openModal, confirmModal, escapeHtml } from "/static/js/components/modal.js";
 import { showToast } from "/static/js/components/toast.js";
 
