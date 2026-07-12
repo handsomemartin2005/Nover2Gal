@@ -872,109 +872,109 @@ li {
 .game-screen[data-bg="bg_old_school_night"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(10, 18, 28, 0.45), rgba(10, 18, 28, 0.82)),
-    url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_old_hallway.jpg");
 }
 
 .game-screen[data-bg="bg_classroom"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(16, 24, 36, 0.34), rgba(16, 24, 36, 0.78)),
-    url("https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_classroom_front.jpg");
 }
 
 .game-screen[data-bg="bg_default"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(20, 30, 44, 0.4), rgba(20, 30, 44, 0.82)),
-    url("https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=80");
+    linear-gradient(135deg, #253451, #17142d);
 }
 
 .game-screen[data-location="home_living"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(27, 20, 16, 0.22), rgba(27, 20, 16, 0.72)),
-    url("https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_living.jpg");
 }
 
 .game-screen[data-location="restaurant"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(26, 18, 12, 0.25), rgba(26, 18, 12, 0.76)),
-    url("https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_cafe.jpg");
 }
 
 .game-screen[data-location="classroom"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(16, 24, 36, 0.34), rgba(16, 24, 36, 0.78)),
-    url("https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_classroom_front.jpg");
 }
 
 .game-screen[data-location="old_school"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(10, 18, 28, 0.45), rgba(10, 18, 28, 0.82)),
-    url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_old_hallway.jpg");
 }
 
 .game-screen[data-location="bedroom"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(23, 20, 28, 0.24), rgba(23, 20, 28, 0.72)),
-    url("https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_bedroom.jpg");
 }
 
 .game-screen[data-location="kitchen"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(28, 24, 18, 0.22), rgba(28, 24, 18, 0.72)),
-    url("https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1400&q=80");
+    linear-gradient(135deg, #584532, #202537);
 }
 
 .game-screen[data-location="office"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(18, 24, 32, 0.24), rgba(18, 24, 32, 0.76)),
-    url("https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1400&q=80");
+    linear-gradient(135deg, #27364b, #171d31);
 }
 
 .game-screen[data-location="village"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(30, 28, 18, 0.18), rgba(30, 28, 18, 0.72)),
-    url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_campus.jpg");
 }
 
 .game-screen[data-location="street"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(15, 21, 30, 0.28), rgba(15, 21, 30, 0.78)),
-    url("https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_street.jpg");
 }
 
 .game-screen[data-location="field"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(28, 34, 18, 0.18), rgba(28, 34, 18, 0.72)),
-    url("https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_campus.jpg");
 }
 
 .game-screen[data-location="yard"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(28, 24, 18, 0.2), rgba(28, 24, 18, 0.72)),
-    url("https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_campus.jpg");
 }
 
 .game-screen[data-location="cave_dwelling"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(31, 25, 18, 0.18), rgba(31, 25, 18, 0.76)),
-    url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_cluttered_room.jpg");
 }
 
 .game-screen[data-location="station"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(16, 22, 30, 0.28), rgba(16, 22, 30, 0.78)),
-    url("https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_station_platform.jpg");
 }
 
 .game-screen[data-location="hospital"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(18, 28, 34, 0.2), rgba(18, 28, 34, 0.72)),
-    url("https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_hospital_lobby.jpg");
 }
 
 .game-screen[data-location="shop"] .scene-art {
   background-image:
     linear-gradient(180deg, rgba(28, 22, 16, 0.22), rgba(28, 22, 16, 0.74)),
-    url("https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1400&q=80");
+    url("/static/assets/runtime/minchi_bookstore.jpg");
 }
 
 .scene-art::before {

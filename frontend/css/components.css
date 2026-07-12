@@ -1,0 +1,68 @@
+.glass-panel, .panel {
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(145deg, rgba(255,255,255,.045), transparent 45%), var(--panel-base);
+  box-shadow: inset 0 1px rgba(255,255,255,.055), var(--shadow-panel);
+}
+
+.glass-panel { border-radius: var(--radius-md); }
+.panel { border-radius: var(--radius-md); }
+
+.anime-button, .landing-button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  transition: transform var(--motion-fast) var(--ease-out), border-color var(--motion-base), box-shadow var(--motion-base), filter var(--motion-base);
+}
+.anime-button::before, .landing-button::before { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,.22) 48%, transparent 72%); transform: translateX(-125%); transition: transform var(--motion-slow) var(--ease-out); }
+.anime-button:hover::before, .landing-button:hover::before { transform: translateX(125%); }
+.anime-button:hover, .landing-button:hover { transform: translateY(-2px); }
+.anime-button:active, .landing-button:active { transform: scale(.97); }
+.anime-button--primary { border-color: rgba(85,234,219,.44); color: #07121c; background: linear-gradient(135deg, var(--primary), #a6f4e9 52%, var(--accent)); box-shadow: 0 10px 28px rgba(39,207,192,.17); }
+.anime-button--ghost { border-color: var(--border-soft); color: var(--text-main); background: rgba(255,255,255,.055); }
+.anime-button--ghost:hover { border-color: rgba(85,234,219,.34); box-shadow: var(--glow-primary); }
+.button-ripple { position: absolute; z-index: 2; left: var(--ripple-x); top: var(--ripple-y); width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.55); pointer-events: none; transform: translate(-50%,-50%) scale(0); animation: button-ripple 520ms var(--ease-out) forwards; }
+
+.status-badge { border-color: rgba(85,234,219,.22); color: var(--primary); background: rgba(85,234,219,.075); letter-spacing: .08em; }
+
+.icon-button { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 0; color: var(--text-secondary); background: rgba(255,255,255,.045); transition: color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast); }
+.icon-button:hover { color: var(--primary); border-color: rgba(85,234,219,.34); transform: translateY(-1px); }
+.icon-button svg { width: 18px; height: 18px; fill: currentColor; }
+
+.modal-backdrop { position: fixed; z-index: 200; inset: 0; display: grid; place-items: center; padding: 20px; opacity: 0; background: rgba(3,6,17,.7); backdrop-filter: blur(10px); transition: opacity var(--motion-base); }
+.modal-backdrop.is-visible { opacity: 1; }
+.modal-panel { position: relative; width: min(560px, 100%); overflow: hidden; border: 1px solid rgba(255,255,255,.13); border-radius: var(--radius-lg); padding: clamp(22px, 4vw, 34px); background: linear-gradient(145deg, rgba(85,234,219,.065), transparent 38%), var(--panel-strong); box-shadow: 0 32px 100px rgba(0,0,0,.58), var(--glow-secondary); transform: translateY(10px) scale(.96); transition: transform var(--motion-base) var(--ease-out); }
+.is-visible .modal-panel { transform: translateY(0) scale(1); }
+.modal-ornament { position: absolute; right: -50px; top: -60px; width: 210px; height: 210px; border: 1px solid rgba(198,140,255,.15); border-radius: 50%; box-shadow: 0 0 0 28px rgba(198,140,255,.025), 0 0 0 55px rgba(85,234,219,.018); }
+.modal-head { position: relative; display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.modal-head > div { display: grid; gap: 12px; }
+.modal-head h2 { font-size: clamp(24px, 4vw, 34px); letter-spacing: -.03em; }
+.modal-copy { margin-top: 14px; color: var(--text-secondary); line-height: 1.7; }
+.motion-options { display: grid; gap: 10px; margin-top: 24px; }
+.motion-options label { cursor: pointer; }
+.motion-options input { position: absolute; opacity: 0; pointer-events: none; }
+.motion-options span { display: grid; gap: 3px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 14px 16px; background: rgba(255,255,255,.035); transition: border-color var(--motion-fast), background var(--motion-fast), transform var(--motion-fast); }
+.motion-options span::before { content: ""; position: absolute; }
+.motion-options strong { color: var(--text-main); }
+.motion-options small { color: var(--text-muted); font-size: 12px; font-weight: 500; }
+.motion-options input:checked + span { border-color: var(--border-active); background: linear-gradient(90deg, rgba(85,234,219,.1), rgba(198,140,255,.055)); box-shadow: inset 3px 0 var(--primary); transform: translateX(2px); }
+.motion-options input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+.modal-actions { display: flex; justify-content: end; gap: 10px; margin-top: 26px; }
+
+.toast-region { position: fixed; z-index: 300; right: 20px; bottom: 20px; display: grid; gap: 10px; width: min(360px, calc(100vw - 40px)); pointer-events: none; }
+.toast { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 13px 15px; opacity: 0; color: var(--text-main); background: var(--panel-strong); box-shadow: var(--shadow-panel); transform: translateX(18px); transition: opacity var(--motion-base), transform var(--motion-base) var(--ease-out); }
+.toast.is-visible { opacity: 1; transform: translateX(0); }
+.toast > span { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 12px rgba(85,234,219,.6); }
+.toast--success > span { background: var(--success); }
+.toast p { font-size: 13px; font-weight: 700; }
+
+input, textarea, select { border-radius: var(--radius-sm); transition: border-color var(--motion-fast), background var(--motion-fast), box-shadow var(--motion-fast); }
+input:focus, textarea:focus, select:focus { border-color: var(--border-active); background: rgba(9,16,34,.82); box-shadow: 0 0 0 3px rgba(85,234,219,.1), var(--glow-primary); }
+
+/* The workbench only paints locally cached art; this gradient is its offline-safe stage fallback. */
+.scene-art:not(.asset-backed) {
+  background-image:
+    radial-gradient(circle at 72% 20%, rgba(255,214,123,.18), transparent 22%),
+    linear-gradient(150deg, rgba(85,234,219,.13), transparent 38%),
+    linear-gradient(28deg, #10172d, #281735) !important;
+}

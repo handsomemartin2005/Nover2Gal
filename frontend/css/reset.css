@@ -1,0 +1,9 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { min-width: 320px; scroll-behavior: smooth; }
+body, h1, h2, h3, p, figure, fieldset { margin: 0; }
+fieldset { min-width: 0; border: 0; padding: 0; }
+button, input, textarea, select { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+img, svg { display: block; max-width: 100%; }
+[hidden] { display: none !important; }
+

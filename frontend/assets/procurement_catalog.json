@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "reviewed_at": "2026-07-10",
+  "minimum_items_per_group": 12,
+  "policy": {
+    "bundled": "May be copied into the public runtime only after the recorded license and source page are archived.",
+    "catalog_only": "Discovery link only. Do not copy the asset into Novel2Gal's public runtime without a platform/SaaS redistribution grant.",
+    "manual_review": "Re-check the item page immediately before purchase or download because creator terms can change."
+  },
+  "platforms": [
+    {
+      "id": "booth",
+      "name": "BOOTH",
+      "license_url": "https://booth.pm/",
+      "default_mode": "catalog_only",
+      "default_license": "Per-item commercial-use license; raw redistribution is normally prohibited.",
+      "groups": [
+        {
+          "id": "backgrounds",
+          "label": "日系背景与场景包",
+          "items": [
+            {"title": "Bedroom - Visual Novel Background", "url": "https://booth.pm/en/items/5403204", "notes": "3 JPG, day/evening/night; commercial use; no redistribution"},
+            {"title": "Simple Livingroom Background for VN", "url": "https://booth.pm/ja/items/4515425", "notes": "1920x1080 PNG; morning/noon/night variants"},
+            {"title": "Cutscene Backgrounds x8", "url": "https://booth.pm/ja/items/8152271", "notes": "8 fantasy backgrounds; commercial use and editing allowed"},
+            {"title": "学校 教室02", "url": "https://booth.pm/ja/items/3477101", "notes": "3050x2228 PNG; individual and corporate game use"},
+            {"title": "夜の中華街", "url": "https://booth.pm/ja/items/4966266", "notes": "1920x1080 PNG; commercial game/web use"},
+            {"title": "繁華街（昼）", "url": "https://booth.pm/ja/items/1972210", "notes": "3500x2400 JPEG/PSD; commercial use"},
+            {"title": "無料 教室背景167点", "url": "https://booth.pm/ja/items/8567497", "notes": "167 JPG; commercial game use; no raw redistribution"},
+            {"title": "ストリート街の背景素材", "url": "https://booth.pm/ja/items/5603747", "notes": "9 images, approximately 16:9; commercial use"},
+            {"title": "办公室昼夜差分50枚", "url": "https://booth.pm/ja/items/7622564", "notes": "16:9 office locations; commercial use; package inclusion permitted"},
+            {"title": "ノベルゲーム向け汎用背景22枚", "url": "https://booth.pm/ja/items/7856541", "notes": "Modern Japan, time variants; AI-assisted; no redistribution"},
+            {"title": "ファンタジー森道・水辺・石橋20枚", "url": "https://booth.pm/ja/items/8415928", "notes": "4K PNG/PSD; AI-assisted; commercial use"},
+            {"title": "雨の街中87枚", "url": "https://booth.pm/ja/items/7193187", "notes": "16:9 rainy city scenes; AI-assisted; commercial use"}
+          ]
+        },
+        {
+          "id": "portraits",
+          "label": "角色立绘与表情差分",
+          "items": [
+            {"title": "全身立绘 表情差分9种", "url": "https://booth.pm/ja/items/8169453", "notes": "Transparent PNG; commercial use; credit optional"},
+            {"title": "男子学生・青年 表情12种与返血差分", "url": "https://booth.pm/ja/items/7843775", "notes": "Free sample and commercial full pack; AI-assisted with manual retouching"},
+            {"title": "薄幸青年 表情差分9种", "url": "https://booth.pm/ja/items/6649541", "notes": "951x3500 transparent PNG; commercial credit required"},
+            {"title": "男子学生・筋肉质 表情差分10种", "url": "https://booth.pm/ja/items/6974281", "notes": "2000x3277 transparent PNG; commercial credit required"},
+            {"title": "女性立绘0001 表情差分10种", "url": "https://booth.pm/ja/items/8373432", "notes": "Free trial and paid full-size packs; commercial credit required"},
+            {"title": "漂亮姐姐 表情差分10种", "url": "https://booth.pm/ja/items/7670359", "notes": "1700x4000 PNG; separate commercial-use tier"},
+            {"title": "强气女性 表情差分3种", "url": "https://booth.pm/ja/items/6221916", "notes": "Commercial use and color adjustment allowed"},
+            {"title": "立绘素材2 表情7种/手部差分", "url": "https://booth.pm/ja/items/5335404", "notes": "Free/paid variants; commercial use; no redistribution"},
+            {"title": "少女 全身立绘 表情差分2种", "url": "https://booth.pm/ja/items/8195606", "notes": "3000x3000 transparent PNG; commercial use"},
+            {"title": "女性全身立绘 表情差分", "url": "https://booth.pm/ja/items/6551353", "notes": "Approx. 1500x4500 transparent PNG; commercial use"},
+            {"title": "白发波波头 表情差分12种", "url": "https://booth.pm/ja/items/7767312", "notes": "Commercial use with creator credit"},
+            {"title": "男子学生01 表情差分10种", "url": "https://booth.pm/ja/items/3273866", "notes": "800x3000 transparent PNG; commercial use; credit optional"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "otologic",
+      "name": "OtoLogic",
+      "license_url": "https://otologic.jp/free/license",
+      "default_mode": "catalog_only",
+      "default_license": "CC BY 4.0 with OtoLogic credit; verify the current site terms before bundling.",
+      "groups": [
+        {
+          "id": "bgm",
+          "label": "剧情与氛围 BGM",
+          "items": [
+            {"title": "The Dark Eternal Night", "url": "https://otologic.jp/free/bgm/ambient01.html", "notes": "Unsettling ambient"},
+            {"title": "夢想", "url": "https://otologic.jp/free/bgm/ambient01.html", "notes": "Dark and transparent ambient"},
+            {"title": "地下研究所", "url": "https://otologic.jp/free/bgm/ambient01.html", "notes": "Dark laboratory ambience"},
+            {"title": "木星", "url": "https://otologic.jp/free/bgm/ambient01.html", "notes": "Heavy space atmosphere"},
+            {"title": "星間物質", "url": "https://otologic.jp/free/bgm/ambient01.html", "notes": "Floating space atmosphere"},
+            {"title": "新月の闇", "url": "https://otologic.jp/free/bgm/ambient01.html", "notes": "Dark horror atmosphere"},
+            {"title": "暗い通路", "url": "https://otologic.jp/free/bgm/ambient01.html", "notes": "Horror corridor atmosphere"},
+            {"title": "過ちの代償", "url": "https://otologic.jp/free/bgm/music-box01.html", "notes": "Sad music-box drama"},
+            {"title": "冷たい気配", "url": "https://otologic.jp/free/bgm/music-box01.html", "notes": "Horror music box"},
+            {"title": "故郷の夕日", "url": "https://otologic.jp/free/bgm/music-box01.html", "notes": "Gentle nostalgic music box"},
+            {"title": "春の教室", "url": "https://otologic.jp/free/bgm/pop-music-piano01.html", "notes": "Gentle classroom piano"},
+            {"title": "悲しみに咲く花", "url": "https://otologic.jp/free/bgm/pop-music-piano01.html", "notes": "Melancholic piano ballad"}
+          ]
+        },
+        {
+          "id": "sfx",
+          "label": "界面、转场与剧情演出音",
+          "items": [
+            {"title": "カメラモーション11", "url": "https://otologic.jp/free/se/camera-motion01.html", "notes": "Standard whoosh, six variants"},
+            {"title": "カメラモーション10", "url": "https://otologic.jp/free/se/camera-motion01.html", "notes": "Impactful stereo whoosh, six variants"},
+            {"title": "アニメモーション39", "url": "https://otologic.jp/free/se/anime-motion03.html", "notes": "Quick cute motion, four variants"},
+            {"title": "アニメモーション38", "url": "https://otologic.jp/free/se/anime-motion03.html", "notes": "Soft character motion, six variants"},
+            {"title": "オノマトペ ネガティブ16", "url": "https://otologic.jp/free/se/negative01.html", "notes": "Cute surprise/awkward cue"},
+            {"title": "オノマトペ ネガティブ15", "url": "https://otologic.jp/free/se/negative01.html", "notes": "Comical disappointment cue"},
+            {"title": "オノマトペ 光る17", "url": "https://otologic.jp/free/se/flash01.html", "notes": "Anime sparkle cue"},
+            {"title": "オノマトペ 光る16", "url": "https://otologic.jp/free/se/flash01.html", "notes": "Metallic shine cue"},
+            {"title": "オノマトペ 衝撃10", "url": "https://otologic.jp/free/se/impact01.html", "notes": "Stylized shock cue"},
+            {"title": "ホラーアクセント16", "url": "https://otologic.jp/free/se/horror-accent01.html", "notes": "Horror bell accent"},
+            {"title": "レジ ドロワー02", "url": "https://otologic.jp/free/se/store01.html", "notes": "Retro cash register, six variants"},
+            {"title": "電磁ブザー06", "url": "https://otologic.jp/free/se/buzzers01.html", "notes": "Heavy buzzer, ten variants"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kenney",
+      "name": "Kenney",
+      "license_url": "https://kenney.nl/support",
+      "default_mode": "bundled",
+      "default_license": "CC0; commercial use and redistribution permitted; attribution optional.",
+      "groups": [
+        {
+          "id": "interface",
+          "label": "UI、图标、光标与边框",
+          "items": [
+            {"title": "Input Prompts", "url": "https://kenney.nl/assets/input-prompts", "notes": "Controller and keyboard prompts"},
+            {"title": "Mobile Controls", "url": "https://kenney.nl/assets/mobile-controls", "notes": "Touch controls"},
+            {"title": "UI Pack - Pixel Adventure", "url": "https://kenney.nl/assets/ui-pack-pixel-adventure", "notes": "Pixel adventure interface"},
+            {"title": "UI Pack - Sci-Fi", "url": "https://kenney.nl/assets/ui-pack-sci-fi", "notes": "Science-fiction interface"},
+            {"title": "UI Pack - Adventure", "url": "https://kenney.nl/assets/ui-pack-adventure", "notes": "Adventure interface"},
+            {"title": "Board Game Icons", "url": "https://kenney.nl/assets/board-game-icons", "notes": "General action icons"},
+            {"title": "Cursor Pixel Pack", "url": "https://kenney.nl/assets/cursor-pixel-pack", "notes": "Pixel cursors"},
+            {"title": "UI Pack", "url": "https://kenney.nl/assets/ui-pack", "notes": "430 general interface assets"},
+            {"title": "Cursor Pack", "url": "https://kenney.nl/assets/cursor-pack", "notes": "General cursors"},
+            {"title": "Input Prompts Pixel 1-Bit", "url": "https://kenney.nl/assets/input-prompts-pixel-1-bit", "notes": "Monochrome input prompts"},
+            {"title": "Fantasy UI Borders", "url": "https://kenney.nl/assets/fantasy-ui-borders", "notes": "Fantasy dialogue and panel borders"},
+            {"title": "Board Game Info", "url": "https://kenney.nl/assets/board-game-info", "notes": "Info and state icons"},
+            {"title": "Input Prompts Pixel", "url": "https://kenney.nl/assets/input-prompts-pixel", "notes": "Pixel input prompts"},
+            {"title": "Emotes Pack", "url": "https://kenney.nl/assets/emotes-pack", "notes": "Reaction and emotion icons"},
+            {"title": "Ranks Pack", "url": "https://kenney.nl/assets/ranks-pack", "notes": "Badges and ranks"},
+            {"title": "Interface Sounds", "url": "https://kenney.nl/assets/interface-sounds", "notes": "UI visuals can pair with the sound pack"}
+          ]
+        },
+        {
+          "id": "audio",
+          "label": "CC0 UI、提示、冲击与短音乐",
+          "items": [
+            {"title": "Casino Audio", "url": "https://kenney.nl/assets/casino-audio", "notes": "Rewards, coins and game feedback"},
+            {"title": "Sci-fi Sounds", "url": "https://kenney.nl/assets/sci-fi-sounds", "notes": "Technology and futuristic feedback"},
+            {"title": "Interface Sounds - clicks", "url": "https://kenney.nl/assets/interface-sounds", "notes": "Button and menu clicks"},
+            {"title": "Interface Sounds - confirmations", "url": "https://kenney.nl/assets/interface-sounds", "notes": "Confirm, cancel and notification cues"},
+            {"title": "Impact Sounds", "url": "https://kenney.nl/assets/impact-sounds", "notes": "Hits and dramatic impacts"},
+            {"title": "Voiceover Pack (Fighter)", "url": "https://kenney.nl/assets/voiceover-pack-fighter", "notes": "Short character reactions"},
+            {"title": "Voiceover Pack", "url": "https://kenney.nl/assets/voiceover-pack", "notes": "Generic short voice prompts"},
+            {"title": "Music Jingles", "url": "https://kenney.nl/assets/music-jingles", "notes": "Short success, failure and transition music"},
+            {"title": "RPG Audio", "url": "https://kenney.nl/assets/rpg-audio", "notes": "Inventory and RPG feedback"},
+            {"title": "Digital Audio", "url": "https://kenney.nl/assets/digital-audio", "notes": "Digital and computer cues"},
+            {"title": "UI Audio - navigation", "url": "https://kenney.nl/assets/ui-audio", "notes": "Navigation and focus cues"},
+            {"title": "UI Audio - alerts", "url": "https://kenney.nl/assets/ui-audio", "notes": "Alerts and state feedback"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "freesound",
+      "name": "Freesound",
+      "license_url": "https://freesound.org/help/faq/",
+      "default_mode": "bundled",
+      "default_license": "CC0 items selected through the Creative Commons 0 filter; re-check each sound page before download.",
+      "groups": [
+        {
+          "id": "ambience",
+          "label": "城市、室内、雨夜与人群环境音",
+          "items": [
+            {"title": "City street ambience with construction", "url": "https://freesound.org/people/gravity_proof/sounds/532696/"},
+            {"title": "Clark's Tower Ambience 1 RX", "url": "https://freesound.org/people/greysound/sounds/547923/"},
+            {"title": "Midday Rural Village Ambience", "url": "https://freesound.org/people/TSP-Talk/sounds/847111/"},
+            {"title": "Ambience Shooting Pavilion 01", "url": "https://freesound.org/people/varlamovk/sounds/632748/"},
+            {"title": "Empty Computer Room Ambience", "url": "https://freesound.org/people/OneKellyOrdered/sounds/624238/"},
+            {"title": "Street Jackhammer from Balcony", "url": "https://freesound.org/people/anapb/sounds/622736/"},
+            {"title": "Bus Stop Ambience", "url": "https://freesound.org/people/SFXAFRIK/sounds/582935/"},
+            {"title": "Rainy Ambience Sampler 5", "url": "https://freesound.org/people/WKG-518/sounds/634745/"},
+            {"title": "Cologne City Center Ambience 2", "url": "https://freesound.org/people/Pfannkuchn/sounds/384478/"},
+            {"title": "Night Ambience at Wharf", "url": "https://freesound.org/people/lunchmoney/sounds/383114/"},
+            {"title": "Cafe Ambience 001", "url": "https://freesound.org/people/samyi/sounds/382314/"},
+            {"title": "Boston Garden Crowd Ambience", "url": "https://freesound.org/people/Douglas711/sounds/424297/"}
+          ]
+        },
+        {
+          "id": "foley",
+          "label": "脚步与地面拟音",
+          "items": [
+            {"title": "Footsteps on Wooden Stairs 2", "url": "https://freesound.org/people/onursamli/sounds/846921/"},
+            {"title": "Binaural Suburban Footsteps 2", "url": "https://freesound.org/people/The_Underdog/sounds/628810/"},
+            {"title": "Mountain Boots Snow Walk", "url": "https://freesound.org/people/Nox_Sound/sounds/613849/"},
+            {"title": "Knight Footstep Forest Grass", "url": "https://freesound.org/people/Ali_6868/sounds/384902/"},
+            {"title": "Knight Footstep Gravel", "url": "https://freesound.org/people/Ali_6868/sounds/384890/"},
+            {"title": "Right Gravel Footstep", "url": "https://freesound.org/people/Ali_6868/sounds/384880/"},
+            {"title": "Right Grass Footstep", "url": "https://freesound.org/people/Ali_6868/sounds/384869/"},
+            {"title": "Footstep in Snow RAW", "url": "https://freesound.org/people/cabled_mess/sounds/384424/"},
+            {"title": "Wood Socks Jumps and Scuffs", "url": "https://freesound.org/people/SpliceSound/sounds/369838/"},
+            {"title": "Snow Footsteps Outside", "url": "https://freesound.org/people/Nimlos/sounds/432285/"},
+            {"title": "Walking Footsteps on Wood", "url": "https://freesound.org/people/thomasanthony321/sounds/682774/"},
+            {"title": "Solid Wood Female Socks Scuffs", "url": "https://freesound.org/people/SpliceSound/sounds/148802/"}
+          ]
+        },
+        {
+          "id": "ui",
+          "label": "点击、按钮与菜单反馈音",
+          "items": [
+            {"title": "Click Metronome Atonal High", "url": "https://freesound.org/people/lennartgreen/sounds/566888/"},
+            {"title": "Mouse Double Click", "url": "https://freesound.org/people/pbimal/sounds/534104/"},
+            {"title": "Phone Clicks", "url": "https://freesound.org/people/AUDACITIER/sounds/622328/"},
+            {"title": "CLICK 143", "url": "https://freesound.org/people/Jaszunio15/sounds/421475/"},
+            {"title": "Mouse 2 Button Long Click", "url": "https://freesound.org/people/aphom000/sounds/687108/"},
+            {"title": "Click SFX 6", "url": "https://freesound.org/people/blackstalian/sounds/140512/"},
+            {"title": "Karabiner Click 05", "url": "https://freesound.org/people/Rudmer_Rotteveel/sounds/457461/"},
+            {"title": "Mouse Click Sound", "url": "https://freesound.org/people/Pixeliota/sounds/678248/"},
+            {"title": "Click 1", "url": "https://freesound.org/people/JonnyRuss01/sounds/478197/"},
+            {"title": "Click 5", "url": "https://freesound.org/people/SomeoneCool15/sounds/423774/"},
+            {"title": "Videogame Menu Button Click", "url": "https://freesound.org/people/Christopherderp/sounds/342200/"},
+            {"title": "Bongo Cowbell Clave Click", "url": "https://freesound.org/people/Sycopation/sounds/738105/"}
+          ]
+        },
+        {
+          "id": "transition",
+          "label": "转场、挥动与镜头 Whoosh",
+          "items": [
+            {"title": "Little Whoosh 2", "url": "https://freesound.org/people/ch_ase/sounds/423799/"},
+            {"title": "Whoosh Set 3", "url": "https://freesound.org/people/sramse/sounds/342984/"},
+            {"title": "Whoosh Short Mid", "url": "https://freesound.org/people/DJT4NN3R/sounds/449996/"},
+            {"title": "Whoosh for Whip Zoom", "url": "https://freesound.org/people/BennettFilmTeacher/sounds/486234/"},
+            {"title": "Whoosh Metal Alien", "url": "https://freesound.org/people/Framing_Noise/sounds/256911/"},
+            {"title": "Ukulele Whoosh 3", "url": "https://freesound.org/people/saturdaysoundguy/sounds/391449/"},
+            {"title": "Futuristic Synthetic Whoosh", "url": "https://freesound.org/people/JW_Audio/sounds/848212/"},
+            {"title": "Whoosh Dash", "url": "https://freesound.org/people/Kastenfrosch/sounds/521999/"},
+            {"title": "White Noise Modulation Whoosh", "url": "https://freesound.org/people/doudar41/sounds/517056/"},
+            {"title": "Whoosh Sample", "url": "https://freesound.org/people/Zaziesound/sounds/558205/"},
+            {"title": "Swish Whoosh", "url": "https://freesound.org/people/JSilverSound/sounds/568834/"},
+            {"title": "Whooshes 20210427", "url": "https://freesound.org/people/sweet_niche/sounds/570350/"}
+          ]
+        }
+      ]
+    }
+  ]
+}

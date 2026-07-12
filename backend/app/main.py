@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import os
 from pathlib import Path
 import threading
 import time
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 import anyio
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -16,7 +17,54 @@ from pydantic import BaseModel, Field
 from app.importers.document_importer import import_document_bytes
 from app.core.config import Settings
 from app.media.providers import build_image_generation_plan, build_tts_plan, provider_status
-from app.services.project_queue import create_project_from_upload, list_projects, public_project_payload, run_project
+from app.services.auth_store import (
+    authenticate_user,
+    change_password,
+    create_session,
+    create_user,
+    ensure_bootstrap_admin,
+    get_session_user,
+    get_user_by_id,
+    list_users,
+    revoke_session,
+    update_user,
+)
+from app.services.ai_gateway import (
+    delete_api_config,
+    generate_image,
+    list_api_configs,
+    list_provider_presets,
+    save_api_config,
+    synthesize_speech,
+    usage_summary,
+    user_text_runtime,
+)
+from app.services.object_store import ensure_bucket, get_bytes, persist_image_item, put_bytes
+from app.services import object_store
+from app.services import postgres_project_store, task_queue
+from app.services.project_queue import (
+    assign_project_owner,
+    assign_sample_owner,
+    claim_legacy_content,
+    clone_sample,
+    create_project,
+    create_project_from_upload,
+    delete_project,
+    delete_sample,
+    duplicate_project,
+    get_sample,
+    list_project_versions,
+    list_projects,
+    list_samples,
+    project_owner_id,
+    public_project_payload,
+    publish_sample,
+    rollback_project_version,
+    run_project,
+    sample_access,
+    update_sample,
+    update_project,
+)
 from app.services.novel_pipeline import run_pipeline
 from app.schemas.story import to_api_payload
 
@@ -33,22 +81,141 @@ class ImageGenerationRequest(BaseModel):
     prompt: str = Field(min_length=1)
     scene_id: str = ""
     style: Literal["anime", "real"] = "anime"
+    size: str = Field(default="1024x1024", max_length=40)
+    count: int = Field(default=1, ge=1, le=4)
+
+
+class CharacterImageRequest(BaseModel):
+    style: Literal["anime", "real"] = "anime"
+    size: str = Field(default="1024x1536", max_length=40)
+    extra_prompt: str = Field(default="", max_length=1000)
 
 
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1)
     voice: str = "default"
+    response_format: Literal["mp3", "wav", "opus"] = "mp3"
 
 
-app = FastAPI(title="Novel2Gal Backend", version="0.1.0")
+class APIConfigRequest(BaseModel):
+    provider: str = Field(default="custom", min_length=1, max_length=40)
+    api_format: str = Field(min_length=1, max_length=40)
+    base_url: str = Field(min_length=8, max_length=500)
+    model: str = Field(min_length=1, max_length=160)
+    api_key: str = Field(default="", max_length=1000)
+    extra_headers: dict[str, str] = Field(default_factory=dict)
+    enabled: bool = True
+
+
+class ProjectCreateRequest(BaseModel):
+    title: str = Field(default="未命名企划", max_length=160)
+    source_text: str = ""
+    filename: str = ""
+    pov_character: str = Field(default="", max_length=120)
+    max_scenes: int | None = Field(default=None, ge=1)
+    llm_model: Literal["deepseek-v4-pro", "deepseek-v4-flash"] | None = None
+
+
+class ProjectUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=160)
+    filename: str | None = None
+    source_text: str | None = None
+    pov_character: str | None = Field(default=None, max_length=120)
+    max_scenes: int | None = Field(default=None, ge=1)
+    llm_model: Literal["deepseek-v4-pro", "deepseek-v4-flash"] | None = None
+    status: Literal["draft", "queued", "running", "done", "failed", "cancelled"] | None = None
+    result: dict[str, Any] | None = None
+    ui_state: dict[str, Any] | None = None
+    current_scene_id: str | None = None
+    version_note: str = "自动快照"
+
+
+class SamplePublishRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=1000)
+    category: str = Field(default="其他", max_length=80)
+    cover: str = ""
+    include_source: bool = False
+    include_script: bool = True
+    visibility: Literal["private", "public"] = "private"
+    allow_clone: bool = True
+
+
+class RegisterRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=32)
+    display_name: str = Field(default="", max_length=60)
+    password: str = Field(min_length=8, max_length=128)
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=32)
+    password: str = Field(min_length=1, max_length=128)
+    login_type: Literal["user", "admin"] = "user"
+
+
+class ProfileUpdateRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=60)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class SampleUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=1000)
+    category: str | None = Field(default=None, max_length=80)
+    cover: str | None = None
+    visibility: Literal["private", "public"] | None = None
+    allow_clone: bool | None = None
+
+
+class AdminUserUpdateRequest(BaseModel):
+    role: Literal["user", "admin"] | None = None
+    status: Literal["active", "suspended"] | None = None
+
+
+class AdminSampleUpdateRequest(BaseModel):
+    visibility: Literal["private", "public"]
+
+
+class AdminOwnerUpdateRequest(BaseModel):
+    owner_id: str = Field(min_length=32, max_length=32)
+
+
+SESSION_COOKIE_NAME = "novel2gal_session"
+
+
+@asynccontextmanager
+async def app_lifespan(_app: FastAPI):
+    if postgres_project_store.enabled():
+        postgres_project_store.initialize()
+        postgres_project_store.migrate_file_projects(Path(os.environ.get("PROJECT_STORE_DIR") or "/var/lib/novel2gal/projects"))
+    ensure_bucket()
+    admin = ensure_bootstrap_admin()
+    if admin and os.environ.get("NOVEL2GAL_CLAIM_LEGACY_TO_ADMIN", "").lower() in {"1", "true", "yes"}:
+        claim_legacy_content(admin["user_id"])
+    yield
+
+
+app = FastAPI(title="Novel2Gal Backend", version="0.1.0", lifespan=app_lifespan)
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
-SPA_ROUTES = {"create", "templates", "projects"}
+SPA_ROUTES = {"create", "templates", "projects", "account", "admin"}
 DEFAULT_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 DEFAULT_MAX_PIPELINE_TEXT_CHARS = 1_200_000
 DEFAULT_MAX_PIPELINE_PROCESS_CHARS = 120_000
 PIPELINE_JOBS: dict[str, dict] = {}
 PIPELINE_JOB_LOCK = threading.Lock()
+AUTH_ATTEMPTS: dict[str, list[float]] = {}
+AUTH_ATTEMPT_LOCK = threading.Lock()
+INDEX_CACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+    "X-Novel2Gal-Build": "20260710-auth6",
+}
 
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
@@ -59,40 +226,176 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/health/ready")
+def readiness() -> dict[str, Any]:
+    dependencies = {
+        "redis": task_queue.healthy(),
+        "postgresql": postgres_project_store.healthy(),
+        "object_storage": object_store.healthy(),
+    }
+    if not all(dependencies.values()):
+        raise HTTPException(status_code=503, detail={"status": "degraded", "dependencies": dependencies})
+    return {"status": "ready", "dependencies": dependencies}
+
+
+def optional_user(request: Request) -> dict[str, Any] | None:
+    return get_session_user(request.cookies.get(SESSION_COOKIE_NAME))
+
+
+def require_user(user: dict[str, Any] | None = Depends(optional_user)) -> dict[str, Any]:
+    if not user:
+        raise HTTPException(status_code=401, detail="请先登录")
+    return user
+
+
+def require_admin(user: dict[str, Any] = Depends(require_user)) -> dict[str, Any]:
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return user
+
+
+@app.post("/api/auth/register", status_code=201)
+def register_endpoint(payload: RegisterRequest, request: Request, response: Response) -> dict:
+    _check_auth_rate_limit(request)
+    try:
+        user = create_user(
+            payload.username,
+            payload.password,
+            display_name=payload.display_name,
+        )
+    except FileExistsError as exc:
+        _record_auth_failure(request)
+        raise HTTPException(status_code=409, detail="用户名已被使用") from exc
+    except ValueError as exc:
+        _record_auth_failure(request)
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _clear_auth_failures(request)
+    _start_user_session(response, request, user)
+    return {"user": user}
+
+
+@app.post("/api/auth/login")
+def login_endpoint(payload: LoginRequest, request: Request, response: Response) -> dict:
+    _check_auth_rate_limit(request)
+    user = authenticate_user(payload.username, payload.password)
+    if not user:
+        _record_auth_failure(request)
+        raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if payload.login_type == "admin" and user.get("role") != "admin":
+        _record_auth_failure(request)
+        raise HTTPException(status_code=403, detail="该账号不是管理员")
+    _clear_auth_failures(request)
+    _start_user_session(response, request, user)
+    return {"user": user}
+
+
+@app.post("/api/auth/logout")
+def logout_endpoint(request: Request, response: Response) -> dict:
+    revoke_session(request.cookies.get(SESSION_COOKIE_NAME))
+    response.delete_cookie(SESSION_COOKIE_NAME, path="/", samesite="lax")
+    return {"logged_out": True}
+
+
+@app.get("/api/auth/me")
+def current_user_endpoint(user: dict[str, Any] | None = Depends(optional_user)) -> dict:
+    return {"user": user}
+
+
+@app.patch("/api/auth/profile")
+def update_profile_endpoint(payload: ProfileUpdateRequest, user: dict[str, Any] = Depends(require_user)) -> dict:
+    try:
+        return {"user": update_user(user["user_id"], display_name=payload.display_name)}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/auth/password")
+def change_password_endpoint(
+    payload: PasswordChangeRequest,
+    request: Request,
+    response: Response,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    try:
+        change_password(user["user_id"], payload.current_password, payload.new_password)
+    except PermissionError as exc:
+        raise HTTPException(status_code=422, detail="当前密码不正确") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    _start_user_session(response, request, user)
+    return {"changed": True}
+
+
+@app.get("/api/account/api-configs")
+def account_api_configs_endpoint(user: dict[str, Any] = Depends(require_user)) -> dict:
+    return {"configs": list_api_configs(user["user_id"]), **list_provider_presets()}
+
+
+@app.put("/api/account/api-configs/{service_type}")
+def save_account_api_config_endpoint(
+    service_type: Literal["text", "image", "tts"],
+    payload: APIConfigRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    try:
+        return {"config": save_api_config(user["user_id"], service_type, payload.model_dump())}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.delete("/api/account/api-configs/{service_type}")
+def delete_account_api_config_endpoint(
+    service_type: Literal["text", "image", "tts"],
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    delete_api_config(user["user_id"], service_type)
+    return {"deleted": True, "service_type": service_type}
+
+
+@app.get("/api/account/usage")
+def account_usage_endpoint(days: int = 30, user: dict[str, Any] = Depends(require_user)) -> dict:
+    return usage_summary(user_id=user["user_id"], days=days, limit=50)
+
+
 @app.get("/")
 def frontend_index() -> FileResponse:
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(FRONTEND_DIR / "index.html", headers=INDEX_CACHE_HEADERS)
 
 
 @app.post("/api/pipeline/run")
-def run_pipeline_endpoint(request: PipelineRunRequest) -> dict:
+def run_pipeline_endpoint(request: PipelineRunRequest, user: dict[str, Any] = Depends(require_user)) -> dict:
     _validate_text_size(request.text)
     text = _prepare_pipeline_text(request.text)
+    settings, client = user_text_runtime(user["user_id"])
     result = run_pipeline(
         request.title,
         text,
         request.pov_character,
         max_scenes=request.max_scenes,
         llm_model=request.llm_model,
+        settings=settings,
+        llm_client=client,
     )
     return to_api_payload(result)
 
 
 @app.post("/api/pipeline/run/jobs")
-def run_pipeline_job_endpoint(request: PipelineRunRequest, background_tasks: BackgroundTasks) -> dict:
+def run_pipeline_job_endpoint(
+    request: PipelineRunRequest,
+    background_tasks: BackgroundTasks,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
     _validate_text_size(request.text)
     text = _prepare_pipeline_text(request.text)
-    job_id = _create_pipeline_job(title=request.title)
-    background_tasks.add_task(
-        _execute_pipeline_job,
-        job_id,
-        request.title,
-        text,
-        request.pov_character,
-        request.max_scenes,
-        request.llm_model,
-    )
-    return _job_public_payload(job_id)
+    if task_queue.enabled():
+        job_id = task_queue.enqueue_pipeline(owner_id=user["user_id"], title=request.title, text=text,
+                                             pov_character=request.pov_character, max_scenes=request.max_scenes,
+                                             llm_model=request.llm_model)
+    else:
+        job_id = _create_pipeline_job(title=request.title, owner_id=user["user_id"])
+        background_tasks.add_task(_execute_pipeline_job, job_id, request.title, text, request.pov_character,
+                                  request.max_scenes, request.llm_model, user["user_id"])
+    return _job_public_payload(job_id, user["user_id"])
 
 
 @app.post("/api/pipeline/upload")
@@ -102,6 +405,7 @@ async def upload_pipeline_endpoint(
     title: str | None = Form(None),
     max_scenes: int | None = Form(None),
     llm_model: str | None = Form(None),
+    user: dict[str, Any] = Depends(require_user),
 ) -> dict:
     content = await _read_upload_file(file)
     try:
@@ -110,6 +414,7 @@ async def upload_pipeline_endpoint(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     _validate_text_size(document.text)
     text = _prepare_pipeline_text(document.text)
+    settings, client = user_text_runtime(user["user_id"])
     result = await anyio.to_thread.run_sync(
         lambda: run_pipeline(
             title or document.title,
@@ -117,6 +422,8 @@ async def upload_pipeline_endpoint(
             pov_character,
             max_scenes=max_scenes,
             llm_model=_validate_upload_model(llm_model),
+            settings=settings,
+            llm_client=client,
         )
     )
     return to_api_payload(result)
@@ -130,6 +437,7 @@ async def upload_pipeline_job_endpoint(
     title: str | None = Form(None),
     max_scenes: int | None = Form(None),
     llm_model: str | None = Form(None),
+    user: dict[str, Any] = Depends(require_user),
 ) -> dict:
     content = await _read_upload_file(file)
     try:
@@ -139,22 +447,20 @@ async def upload_pipeline_job_endpoint(
     _validate_text_size(document.text)
     text = _prepare_pipeline_text(document.text)
     normalized_model = _validate_upload_model(llm_model)
-    job_id = _create_pipeline_job(title=title or document.title)
-    background_tasks.add_task(
-        _execute_pipeline_job,
-        job_id,
-        title or document.title,
-        text,
-        pov_character,
-        max_scenes,
-        normalized_model,
-    )
-    return _job_public_payload(job_id)
+    if task_queue.enabled():
+        job_id = task_queue.enqueue_pipeline(owner_id=user["user_id"], title=title or document.title,
+                                             text=text, pov_character=pov_character, max_scenes=max_scenes,
+                                             llm_model=normalized_model)
+    else:
+        job_id = _create_pipeline_job(title=title or document.title, owner_id=user["user_id"])
+        background_tasks.add_task(_execute_pipeline_job, job_id, title or document.title, text, pov_character,
+                                  max_scenes, normalized_model, user["user_id"])
+    return _job_public_payload(job_id, user["user_id"])
 
 
 @app.get("/api/pipeline/jobs/{job_id}")
-def pipeline_job_status_endpoint(job_id: str) -> dict:
-    return _job_public_payload(job_id)
+def pipeline_job_status_endpoint(job_id: str, user: dict[str, Any] = Depends(require_user)) -> dict:
+    return _job_public_payload(job_id, user["user_id"], is_admin=user.get("role") == "admin")
 
 
 @app.post("/api/projects/upload")
@@ -165,6 +471,7 @@ async def upload_project_endpoint(
     title: str | None = Form(None),
     max_scenes: int | None = Form(None),
     llm_model: str | None = Form(None),
+    user: dict[str, Any] = Depends(require_user),
 ) -> dict:
     content = await _read_upload_file(file)
     try:
@@ -175,24 +482,377 @@ async def upload_project_endpoint(
             pov_character=pov_character,
             max_scenes=max_scenes,
             llm_model=_validate_upload_model(llm_model),
+            owner_id=user["user_id"],
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    background_tasks.add_task(run_project, project["project_id"])
+    if task_queue.enabled():
+        task_queue.enqueue_project(project_id=project["project_id"], owner_id=user["user_id"])
+    else:
+        background_tasks.add_task(_run_user_project, project["project_id"], user["user_id"])
     return project
 
 
 @app.get("/api/projects")
-def list_projects_endpoint() -> dict:
-    return {"projects": list_projects()}
+def list_projects_endpoint(user: dict[str, Any] = Depends(require_user)) -> dict:
+    return {"projects": list_projects(owner_id=user["user_id"])}
+
+
+@app.post("/api/projects")
+def create_project_endpoint(request: ProjectCreateRequest, user: dict[str, Any] = Depends(require_user)) -> dict:
+    _validate_text_size(request.source_text)
+    return create_project(**request.model_dump(), owner_id=user["user_id"])
 
 
 @app.get("/api/projects/{project_id}")
-def project_status_endpoint(project_id: str) -> dict:
+def project_status_endpoint(project_id: str, user: dict[str, Any] = Depends(require_user)) -> dict:
+    _require_project_access(project_id, user)
     try:
         return public_project_payload(project_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.post("/api/projects/{project_id}/characters/{character_id}/generate-image")
+def generate_character_image_endpoint(
+    project_id: str,
+    character_id: str,
+    request: CharacterImageRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    _require_project_access(project_id, user)
+    project = public_project_payload(project_id)
+    characters = project.get("result", {}).get("analysis", {}).get("characters", []) if project.get("result") else []
+    character = next(
+        (item for item in characters if str(item.get("character_id")) == character_id or str(item.get("name")) == character_id),
+        None,
+    )
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found in the generated project")
+    notes = character.get("visual_notes") or {}
+    prompt = (
+        f"Create an original {request.style} full-body visual-novel character concept. "
+        f"Name: {character.get('name', '')}. Role: {character.get('role', '')}. "
+        f"Personality: {character.get('personality', '')}. Visual notes: {notes}. "
+        "Consistent character design, expressive face, clean simple background, no text, no watermark. "
+        f"{request.extra_prompt}"
+    ).strip()
+    try:
+        result = generate_image(user["user_id"], prompt=prompt, size=request.size, style=request.style, count=1)
+        result["images"] = [persist_image_item(item) for item in result.get("images", [])]
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.patch("/api/projects/{project_id}")
+def update_project_endpoint(
+    project_id: str,
+    request: ProjectUpdateRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    _require_project_access(project_id, user)
+    updates = request.model_dump(exclude_unset=True)
+    version_note = str(updates.pop("version_note", "自动快照"))
+    if isinstance(updates.get("source_text"), str):
+        _validate_text_size(updates["source_text"])
+    try:
+        return update_project(project_id, updates, version_note=version_note)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.delete("/api/projects/{project_id}")
+def delete_project_endpoint(project_id: str, user: dict[str, Any] = Depends(require_user)) -> dict:
+    _require_project_access(project_id, user)
+    try:
+        delete_project(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    return {"deleted": True, "project_id": project_id}
+
+
+@app.post("/api/projects/{project_id}/duplicate")
+def duplicate_project_endpoint(project_id: str, user: dict[str, Any] = Depends(require_user)) -> dict:
+    _require_project_access(project_id, user)
+    try:
+        return duplicate_project(project_id, owner_id=user["user_id"])
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.get("/api/projects/{project_id}/versions")
+def list_project_versions_endpoint(project_id: str, user: dict[str, Any] = Depends(require_user)) -> dict:
+    _require_project_access(project_id, user)
+    try:
+        return {"versions": list_project_versions(project_id)}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.post("/api/projects/{project_id}/versions/{version_id}/rollback")
+def rollback_project_version_endpoint(
+    project_id: str,
+    version_id: str,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    _require_project_access(project_id, user)
+    try:
+        return rollback_project_version(project_id, version_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project or version not found") from exc
+
+
+@app.post("/api/projects/{project_id}/samples")
+def publish_sample_endpoint(
+    project_id: str,
+    request: SamplePublishRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    _require_project_access(project_id, user)
+    if request.visibility == "public" and request.include_source:
+        raise HTTPException(status_code=422, detail="Public samples cannot include the full source text")
+    try:
+        return publish_sample(project_id, request.model_dump(), owner_id=user["user_id"])
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.get("/api/samples")
+def list_samples_endpoint(user: dict[str, Any] | None = Depends(optional_user)) -> dict:
+    return {"samples": list_samples(viewer_id=user["user_id"] if user else None)}
+
+
+@app.get("/api/samples/{sample_id}")
+def get_sample_endpoint(sample_id: str, user: dict[str, Any] | None = Depends(optional_user)) -> dict:
+    _require_sample_view(sample_id, user)
+    try:
+        return get_sample(sample_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+
+
+@app.post("/api/samples/{sample_id}/clone")
+def clone_sample_endpoint(sample_id: str, user: dict[str, Any] = Depends(require_user)) -> dict:
+    _require_sample_view(sample_id, user)
+    try:
+        return clone_sample(sample_id, owner_id=user["user_id"])
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail="This sample cannot be cloned") from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+
+
+@app.delete("/api/samples/{sample_id}")
+def delete_sample_endpoint(sample_id: str, user: dict[str, Any] = Depends(require_user)) -> dict:
+    _require_sample_manage(sample_id, user)
+    try:
+        delete_sample(sample_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+    return {"deleted": True, "sample_id": sample_id}
+
+
+@app.patch("/api/samples/{sample_id}")
+def update_sample_endpoint(
+    sample_id: str,
+    payload: SampleUpdateRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    _require_sample_manage(sample_id, user)
+    updates = payload.model_dump(exclude_unset=True)
+    try:
+        return update_sample(sample_id, updates)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+
+
+@app.get("/api/admin/overview")
+def admin_overview_endpoint(_admin: dict[str, Any] = Depends(require_admin)) -> dict:
+    projects = list_projects()
+    samples = list_samples(include_all=True)
+    users = list_users()
+    return {
+        "users": len(users),
+        "active_users": sum(1 for user in users if user["status"] == "active"),
+        "projects": len(projects),
+        "unowned_projects": sum(1 for project in projects if not project.get("owner_id")),
+        "samples": len(samples),
+        "public_samples": sum(1 for sample in samples if sample.get("visibility") == "public"),
+        "private_samples": sum(1 for sample in samples if sample.get("visibility") != "public"),
+    }
+
+
+@app.get("/api/admin/users")
+def admin_users_endpoint(_admin: dict[str, Any] = Depends(require_admin)) -> dict:
+    projects = list_projects()
+    samples = list_samples(include_all=True)
+    project_counts: dict[str, int] = {}
+    sample_counts: dict[str, int] = {}
+    for project in projects:
+        owner_id = str(project.get("owner_id") or "")
+        project_counts[owner_id] = project_counts.get(owner_id, 0) + 1
+    for sample in samples:
+        owner_id = str(sample.get("owner_id") or "")
+        sample_counts[owner_id] = sample_counts.get(owner_id, 0) + 1
+    users = []
+    for user in list_users():
+        users.append({
+            **user,
+            "project_count": project_counts.get(user["user_id"], 0),
+            "sample_count": sample_counts.get(user["user_id"], 0),
+        })
+    return {"users": users}
+
+
+@app.get("/api/admin/usage")
+def admin_usage_endpoint(days: int = 30, _admin: dict[str, Any] = Depends(require_admin)) -> dict:
+    result = usage_summary(days=days, limit=200)
+    users = {user["user_id"]: user for user in list_users()}
+    for event in result["events"]:
+        owner = users.get(event["user_id"])
+        event["username"] = owner["username"] if owner else "已删除用户"
+        event["display_name"] = owner["display_name"] if owner else "已删除用户"
+    return result
+
+
+@app.patch("/api/admin/users/{user_id}")
+def admin_update_user_endpoint(
+    user_id: str,
+    payload: AdminUserUpdateRequest,
+    admin: dict[str, Any] = Depends(require_admin),
+) -> dict:
+    if user_id == admin["user_id"] and (payload.role == "user" or payload.status == "suspended"):
+        raise HTTPException(status_code=422, detail="不能停用或降级当前管理员账号")
+    try:
+        return {"user": update_user(user_id, **payload.model_dump(exclude_unset=True))}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="User not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/admin/projects")
+def admin_projects_endpoint(_admin: dict[str, Any] = Depends(require_admin)) -> dict:
+    users = {user["user_id"]: user for user in list_users()}
+    projects = []
+    for project in list_projects():
+        owner = users.get(str(project.get("owner_id") or ""))
+        projects.append({
+            **project,
+            "owner_username": owner["username"] if owner else "未归属",
+            "owner_display_name": owner["display_name"] if owner else "旧数据",
+        })
+    return {"projects": projects}
+
+
+@app.patch("/api/admin/projects/{project_id}/owner")
+def admin_assign_project_endpoint(
+    project_id: str,
+    payload: AdminOwnerUpdateRequest,
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> dict:
+    try:
+        get_user_by_id(payload.owner_id)
+        project = assign_project_owner(project_id, payload.owner_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project or user not found") from exc
+    return {"project": project}
+
+
+@app.delete("/api/admin/projects/{project_id}")
+def admin_delete_project_endpoint(project_id: str, _admin: dict[str, Any] = Depends(require_admin)) -> dict:
+    try:
+        delete_project(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    return {"deleted": True, "project_id": project_id}
+
+
+@app.get("/api/admin/samples")
+def admin_samples_endpoint(_admin: dict[str, Any] = Depends(require_admin)) -> dict:
+    users = {user["user_id"]: user for user in list_users()}
+    samples = []
+    for sample in list_samples(include_all=True):
+        owner = users.get(str(sample.get("owner_id") or ""))
+        samples.append({**sample, "owner_username": owner["username"] if owner else "未归属"})
+    return {"samples": samples}
+
+
+@app.patch("/api/admin/samples/{sample_id}")
+def admin_update_sample_endpoint(
+    sample_id: str,
+    payload: AdminSampleUpdateRequest,
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> dict:
+    try:
+        update_sample(sample_id, {"visibility": payload.visibility})
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+    summary = next(
+        (sample for sample in list_samples(include_all=True) if sample.get("sample_id") == sample_id),
+        None,
+    )
+    return {"sample": summary}
+
+
+@app.patch("/api/admin/samples/{sample_id}/owner")
+def admin_assign_sample_endpoint(
+    sample_id: str,
+    payload: AdminOwnerUpdateRequest,
+    _admin: dict[str, Any] = Depends(require_admin),
+) -> dict:
+    try:
+        get_user_by_id(payload.owner_id)
+        sample = assign_sample_owner(sample_id, payload.owner_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample or user not found") from exc
+    return {"sample": sample}
+
+
+@app.delete("/api/admin/samples/{sample_id}")
+def admin_delete_sample_endpoint(sample_id: str, _admin: dict[str, Any] = Depends(require_admin)) -> dict:
+    try:
+        delete_sample(sample_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+    return {"deleted": True, "sample_id": sample_id}
+
+
+def _require_project_access(project_id: str, user: dict[str, Any]) -> None:
+    try:
+        owner_id = project_owner_id(project_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    # The management APIs deliberately expose metadata only.  Even an
+    # administrator must not use the regular project API to read a member's
+    # private source text.
+    if owner_id != user["user_id"]:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+
+def _require_sample_view(sample_id: str, user: dict[str, Any] | None) -> None:
+    try:
+        access = sample_access(sample_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+    if access["visibility"] == "public":
+        return
+    if user and access["owner_id"] == user["user_id"]:
+        return
+    raise HTTPException(status_code=404, detail="Sample not found")
+
+
+def _require_sample_manage(sample_id: str, user: dict[str, Any]) -> None:
+    try:
+        access = sample_access(sample_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Sample not found") from exc
+    if access["owner_id"] == user["user_id"]:
+        return
+    raise HTTPException(status_code=404, detail="Sample not found")
 
 
 def _validate_upload_model(value: str | None) -> str | None:
@@ -203,13 +863,14 @@ def _validate_upload_model(value: str | None) -> str | None:
     return value
 
 
-def _create_pipeline_job(title: str) -> str:
+def _create_pipeline_job(title: str, owner_id: str) -> str:
     job_id = uuid4().hex
     now = time.time()
     with PIPELINE_JOB_LOCK:
         _trim_pipeline_jobs()
         PIPELINE_JOBS[job_id] = {
             "job_id": job_id,
+            "owner_id": owner_id,
             "title": title,
             "status": "queued",
             "created_at": now,
@@ -227,19 +888,28 @@ def _execute_pipeline_job(
     pov_character: str,
     max_scenes: int | None,
     llm_model: str | None,
+    user_id: str,
 ) -> None:
     _update_pipeline_job(job_id, status="running")
     try:
+        settings, client = user_text_runtime(user_id)
         result = run_pipeline(
             title,
             text,
             pov_character,
             max_scenes=max_scenes,
             llm_model=llm_model,
+            settings=settings,
+            llm_client=client,
         )
         _update_pipeline_job(job_id, status="done", result=to_api_payload(result))
     except Exception as exc:
         _update_pipeline_job(job_id, status="failed", error=str(exc))
+
+
+def _run_user_project(project_id: str, user_id: str) -> None:
+    settings, client = user_text_runtime(user_id)
+    run_project(project_id, settings=settings, llm_client=client)
 
 
 def _update_pipeline_job(
@@ -261,10 +931,17 @@ def _update_pipeline_job(
             job["error"] = error
 
 
-def _job_public_payload(job_id: str) -> dict:
+def _job_public_payload(job_id: str, user_id: str, *, is_admin: bool = False) -> dict:
+    if task_queue.enabled():
+        job = task_queue.get_job(job_id)
+        if not job or (not is_admin and job.get("owner_id") != user_id):
+            raise HTTPException(status_code=404, detail="Pipeline job not found")
+        return {key: job.get(key) for key in ("job_id", "title", "status", "created_at", "updated_at", "error", "result")}
     with PIPELINE_JOB_LOCK:
         job = PIPELINE_JOBS.get(job_id)
         if not job:
+            raise HTTPException(status_code=404, detail="Pipeline job not found")
+        if not is_admin and job.get("owner_id") != user_id:
             raise HTTPException(status_code=404, detail="Pipeline job not found")
         return {
             "job_id": job["job_id"],
@@ -329,13 +1006,67 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _start_user_session(response: Response, request: Request, user: dict[str, Any]) -> None:
+    raw_token, _expires_at = create_session(user["user_id"])
+    secure_override = os.environ.get("SESSION_COOKIE_SECURE", "").strip().lower()
+    if secure_override:
+        secure = secure_override in {"1", "true", "yes"}
+    else:
+        forwarded_proto = request.headers.get("x-forwarded-proto", "")
+        secure = request.url.scheme == "https" or forwarded_proto == "https"
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        raw_token,
+        max_age=30 * 24 * 60 * 60,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _auth_rate_key(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+    return forwarded or (request.client.host if request.client else "unknown")
+
+
+def _check_auth_rate_limit(request: Request) -> None:
+    key = _auth_rate_key(request)
+    cutoff = time.time() - 10 * 60
+    with AUTH_ATTEMPT_LOCK:
+        attempts = [timestamp for timestamp in AUTH_ATTEMPTS.get(key, []) if timestamp > cutoff]
+        AUTH_ATTEMPTS[key] = attempts
+        if len(attempts) >= 8:
+            raise HTTPException(status_code=429, detail="登录尝试过多，请稍后再试")
+
+
+def _record_auth_failure(request: Request) -> None:
+    key = _auth_rate_key(request)
+    with AUTH_ATTEMPT_LOCK:
+        AUTH_ATTEMPTS.setdefault(key, []).append(time.time())
+
+
+def _clear_auth_failures(request: Request) -> None:
+    with AUTH_ATTEMPT_LOCK:
+        AUTH_ATTEMPTS.pop(_auth_rate_key(request), None)
+
+
 @app.get("/api/media/providers")
-def media_providers_endpoint() -> dict:
-    return provider_status(Settings.from_env())
+def media_providers_endpoint(user: dict[str, Any] = Depends(require_user)) -> dict:
+    defaults = provider_status(Settings.from_env())
+    return {
+        **defaults,
+        "server_defaults": defaults,
+        "user_configs": list_api_configs(user["user_id"]),
+        **list_provider_presets(),
+    }
 
 
 @app.post("/api/media/image/plan")
-def image_generation_plan_endpoint(request: ImageGenerationRequest) -> dict:
+def image_generation_plan_endpoint(
+    request: ImageGenerationRequest,
+    _user: dict[str, Any] = Depends(require_user),
+) -> dict:
     return build_image_generation_plan(
         prompt=request.prompt,
         scene_id=request.scene_id,
@@ -345,8 +1076,53 @@ def image_generation_plan_endpoint(request: ImageGenerationRequest) -> dict:
 
 
 @app.post("/api/media/tts/plan")
-def tts_plan_endpoint(request: TTSRequest) -> dict:
+def tts_plan_endpoint(request: TTSRequest, _user: dict[str, Any] = Depends(require_user)) -> dict:
     return build_tts_plan(text=request.text, voice=request.voice, settings=Settings.from_env())
+
+
+@app.post("/api/media/image/generate")
+def image_generate_endpoint(
+    request: ImageGenerationRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    try:
+        result = generate_image(
+            user["user_id"], prompt=request.prompt, size=request.size,
+            style=request.style, count=request.count,
+        )
+        result["images"] = [persist_image_item(item) for item in result.get("images", [])]
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/media/tts/synthesize")
+def tts_synthesize_endpoint(
+    request: TTSRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> Response:
+    try:
+        content, media_type = synthesize_speech(
+            user["user_id"], text=request.text, voice=request.voice,
+            response_format=request.response_format,
+        )
+        stored = put_bytes(content, content_type=media_type, category="audio", extension=request.response_format)
+        return Response(content=content, media_type=media_type, headers={"X-Novel2Gal-Asset-Url": stored["url"]})
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/media/assets/{asset_key:path}")
+def media_asset_endpoint(asset_key: str) -> Response:
+    try:
+        content, media_type = get_bytes(asset_key)
+        return Response(content=content, media_type=media_type, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Asset not found") from exc
 
 
 @app.get("/{full_path:path}")
@@ -355,4 +1131,4 @@ def frontend_spa_fallback(full_path: str) -> FileResponse:
         raise HTTPException(status_code=404, detail="Not found")
     if full_path.strip("/") not in SPA_ROUTES:
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(FRONTEND_DIR / "index.html", headers=INDEX_CACHE_HEADERS)

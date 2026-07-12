@@ -1,0 +1,56 @@
+:root {
+  color-scheme: dark;
+  --bg-0: #070916;
+  --bg-1: #0c1228;
+  --bg-2: #17102b;
+  --panel-strong: rgba(13, 20, 43, 0.9);
+  --panel-base: rgba(12, 19, 40, 0.74);
+  --panel-soft: rgba(255, 255, 255, 0.055);
+  --border-soft: rgba(255, 255, 255, 0.1);
+  --border-active: rgba(99, 245, 226, 0.5);
+  --primary: #55eadb;
+  --primary-strong: #27cfc0;
+  --secondary: #c68cff;
+  --secondary-strong: #a76bf2;
+  --accent: #ffd67b;
+  --danger: #ff719e;
+  --success: #64e6ab;
+  --text-main: #f7f9ff;
+  --text-secondary: rgba(239, 244, 255, 0.72);
+  --text-muted: rgba(229, 236, 255, 0.48);
+  --shadow-panel: 0 24px 80px rgba(0, 0, 0, 0.34);
+  --glow-primary: 0 0 40px rgba(85, 234, 219, 0.22);
+  --glow-secondary: 0 0 42px rgba(198, 140, 255, 0.2);
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+  --radius-xl: 36px;
+  --motion-fast: 160ms;
+  --motion-base: 280ms;
+  --motion-slow: 520ms;
+  --motion-cinematic: 760ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-spring: cubic-bezier(0.2, 1.35, 0.35, 1);
+
+  /* Backwards-compatible aliases for the existing workbench. */
+  --color-bg-0: var(--bg-0);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-text: var(--text-main);
+  --color-muted: var(--text-secondary);
+  --panel-bg: var(--panel-base);
+  --panel-border: var(--border-soft);
+  --bg: var(--bg-0);
+  --panel: var(--panel-base);
+  --ink: var(--text-main);
+  --muted: var(--text-secondary);
+  --line: var(--border-soft);
+  --accent-strong: var(--primary-strong);
+  --warn: var(--accent);
+}
+

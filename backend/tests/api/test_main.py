@@ -1,13 +1,35 @@
+import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.auth_store import update_user
+from app.services.ai_gateway import record_usage
 from tests.helpers import write_sample_epub
 
 
 class MainAPITest(unittest.TestCase):
+    def setUp(self):
+        self.auth_tmp = tempfile.TemporaryDirectory()
+        self.auth_env = patch.dict("os.environ", {"AUTH_DB_PATH": os.path.join(self.auth_tmp.name, "auth.sqlite3")})
+        self.auth_env.start()
+
+    def tearDown(self):
+        self.auth_env.stop()
+        self.auth_tmp.cleanup()
+
+    def authenticated_client(self, username: str = "tester") -> TestClient:
+        client = TestClient(app)
+        response = client.post(
+            "/api/auth/register",
+            json={"username": username, "display_name": "测试用户", "password": "testing-password-123"},
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+        return client
+
     def test_health_endpoint(self):
         client = TestClient(app)
 
@@ -18,7 +40,7 @@ class MainAPITest(unittest.TestCase):
 
     @patch.dict("os.environ", {"DEEPSEEK_API": "", "LLM_API_KEY": ""})
     def test_pipeline_run_endpoint_returns_exports(self):
-        client = TestClient(app)
+        client = self.authenticated_client()
 
         response = client.post(
             "/api/pipeline/run",
@@ -39,7 +61,7 @@ class MainAPITest(unittest.TestCase):
 
     @patch.dict("os.environ", {"DEEPSEEK_API": "", "LLM_API_KEY": ""})
     def test_pipeline_run_endpoint_accepts_max_scenes(self):
-        client = TestClient(app)
+        client = self.authenticated_client()
         text = (
             "第一章 雨夜\n"
             "林雨停在门口，苏晚把纸条藏到身后。雨声压住了走廊里的脚步声，他还是听见门缝后有人移动，便伸手按住门把。\n\n"
@@ -73,8 +95,11 @@ class MainAPITest(unittest.TestCase):
         self.assertIn('id="appRoot"', index_response.text)
         self.assertNotIn('id="pipelineForm"', index_response.text)
         self.assertNotIn('id="gamePreview"', index_response.text)
+        self.assertEqual(index_response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
+        self.assertEqual(index_response.headers["x-novel2gal-build"], "20260710-auth6")
         self.assertEqual(create_response.status_code, 200)
         self.assertIn('id="appRoot"', create_response.text)
+        self.assertEqual(create_response.headers["cache-control"], "no-store, no-cache, must-revalidate, max-age=0")
         self.assertEqual(templates_response.status_code, 200)
         self.assertIn('id="appRoot"', templates_response.text)
         self.assertEqual(api_404_response.status_code, 404)
@@ -88,7 +113,7 @@ class MainAPITest(unittest.TestCase):
         self.assertIn("templatesPageTemplate", script_response.text)
         self.assertIn("projectsPageTemplate", script_response.text)
         self.assertIn("animeHeaderMarkup", script_response.text)
-        self.assertIn('href="/create"', script_response.text)
+        self.assertIn('href="/create?new=1"', script_response.text)
         self.assertIn('type="file"', script_response.text)
         self.assertIn('id="gamePreview"', script_response.text)
         self.assertIn('id="thoughtPanel"', script_response.text)
@@ -149,7 +174,7 @@ class MainAPITest(unittest.TestCase):
         import tempfile
         from pathlib import Path
 
-        client = TestClient(app)
+        client = self.authenticated_client()
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "sample.epub"
             write_sample_epub(path)
@@ -168,7 +193,7 @@ class MainAPITest(unittest.TestCase):
         self.assertIn("renpy", payload["exports"])
 
     def test_pipeline_run_endpoint_rejects_unknown_model(self):
-        client = TestClient(app)
+        client = self.authenticated_client()
 
         response = client.post(
             "/api/pipeline/run",
@@ -187,7 +212,7 @@ class MainAPITest(unittest.TestCase):
         import tempfile
         from pathlib import Path
 
-        client = TestClient(app)
+        client = self.authenticated_client()
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "sample.epub"
             write_sample_epub(path)
@@ -217,7 +242,7 @@ class MainAPITest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
-                client = TestClient(app)
+                client = self.authenticated_client()
                 path = Path(tmp) / "sample.epub"
                 write_sample_epub(path)
 
@@ -245,6 +270,162 @@ class MainAPITest(unittest.TestCase):
                 self.assertEqual(list_response.status_code, 200)
                 self.assertTrue(list_response.json()["projects"])
 
+    def test_project_crud_versions_and_samples(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
+                client = self.authenticated_client()
+                created = client.post(
+                    "/api/projects",
+                    json={"title": "星轨企划", "source_text": "第一章\n她推开门。", "pov_character": "苏晚"},
+                )
+                self.assertEqual(created.status_code, 200)
+                project_id = created.json()["project_id"]
+
+                first_result = {"stats": {"adaptation_scenes": 1}, "adaptation_scenes": [], "exports": {"renpy": "one", "markdown": "one"}}
+                second_result = {"stats": {"adaptation_scenes": 2}, "adaptation_scenes": [], "exports": {"renpy": "two", "markdown": "two"}}
+                saved = client.patch(
+                    f"/api/projects/{project_id}",
+                    json={"status": "done", "result": first_result, "current_scene_id": "scene-1"},
+                )
+                versioned = client.patch(
+                    f"/api/projects/{project_id}",
+                    json={"result": second_result, "version_note": "重新生成场景"},
+                )
+
+                self.assertEqual(saved.status_code, 200)
+                self.assertEqual(versioned.status_code, 200)
+                self.assertEqual(versioned.json()["source_text"], "第一章\n她推开门。")
+                versions = client.get(f"/api/projects/{project_id}/versions")
+                self.assertEqual(len(versions.json()["versions"]), 1)
+
+                sample = client.post(
+                    f"/api/projects/{project_id}/samples",
+                    json={"title": "星轨样例", "category": "校园恋爱", "include_script": True},
+                )
+                self.assertEqual(sample.status_code, 200)
+                sample_id = sample.json()["sample_id"]
+                self.assertEqual(client.get("/api/samples").status_code, 200)
+                cloned = client.post(f"/api/samples/{sample_id}/clone")
+                self.assertEqual(cloned.status_code, 200)
+                self.assertNotEqual(cloned.json()["project_id"], project_id)
+
+                duplicated = client.post(f"/api/projects/{project_id}/duplicate")
+                self.assertEqual(duplicated.status_code, 200)
+                deleted = client.delete(f"/api/projects/{project_id}")
+                self.assertEqual(deleted.status_code, 200)
+                self.assertEqual(client.get(f"/api/projects/{project_id}").status_code, 404)
+
+    def test_public_sample_cannot_include_source_text(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
+                client = self.authenticated_client()
+                project = client.post("/api/projects", json={"title": "隐私测试", "source_text": "完整原文"}).json()
+                response = client.post(
+                    f"/api/projects/{project['project_id']}/samples",
+                    json={"title": "公开样例", "visibility": "public", "include_source": True},
+                )
+                self.assertEqual(response.status_code, 422)
+
+    def test_projects_are_isolated_by_authenticated_owner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
+                alice = self.authenticated_client("alice")
+                bob = self.authenticated_client("bob")
+                anonymous = TestClient(app)
+
+                created = alice.post("/api/projects", json={"title": "Alice 私密项目", "source_text": "不能泄露的原文"})
+                self.assertEqual(created.status_code, 200)
+                project_id = created.json()["project_id"]
+
+                self.assertEqual(anonymous.get("/api/projects").status_code, 401)
+                self.assertEqual(bob.get("/api/projects").json()["projects"], [])
+                self.assertEqual(bob.get(f"/api/projects/{project_id}").status_code, 404)
+                self.assertEqual(bob.patch(f"/api/projects/{project_id}", json={"title": "越权"}).status_code, 404)
+                self.assertEqual(bob.post(f"/api/projects/{project_id}/duplicate").status_code, 404)
+                self.assertEqual(bob.delete(f"/api/projects/{project_id}").status_code, 404)
+                self.assertEqual(alice.get(f"/api/projects/{project_id}").json()["source_text"], "不能泄露的原文")
+
+    def test_private_samples_are_hidden_and_public_samples_are_explicit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
+                alice = self.authenticated_client("alice")
+                bob = self.authenticated_client("bob")
+                anonymous = TestClient(app)
+                project = alice.post("/api/projects", json={"title": "样例源项目", "source_text": "私密全文"}).json()
+                sample = alice.post(
+                    f"/api/projects/{project['project_id']}/samples",
+                    json={"title": "私人样例", "visibility": "private", "include_source": True, "allow_clone": True},
+                ).json()
+                sample_id = sample["sample_id"]
+
+                self.assertEqual(anonymous.get("/api/samples").json()["samples"], [])
+                self.assertEqual(bob.get("/api/samples").json()["samples"], [])
+                self.assertEqual(anonymous.get(f"/api/samples/{sample_id}").status_code, 404)
+                self.assertEqual(bob.get(f"/api/samples/{sample_id}").status_code, 404)
+                own_samples = alice.get("/api/samples").json()["samples"]
+                self.assertEqual(own_samples[0]["visibility"], "private")
+                self.assertTrue(own_samples[0]["can_manage"])
+
+                published = alice.patch(f"/api/samples/{sample_id}", json={"visibility": "public"})
+                self.assertEqual(published.status_code, 200)
+                self.assertEqual(published.json()["visibility"], "public")
+                self.assertEqual(published.json()["source_text"], "")
+                public_samples = anonymous.get("/api/samples").json()["samples"]
+                self.assertEqual(public_samples[0]["sample_id"], sample_id)
+                self.assertNotIn("source_text", public_samples[0])
+                clone = bob.post(f"/api/samples/{sample_id}/clone")
+                self.assertEqual(clone.status_code, 200)
+                self.assertEqual(clone.json()["owner_id"], bob.get("/api/auth/me").json()["user"]["user_id"])
+
+    def test_registration_session_and_logout(self):
+        client = TestClient(app)
+        registered = client.post(
+            "/api/auth/register",
+            json={"username": "session-user", "display_name": "会话用户", "password": "strong-password-123"},
+        )
+        self.assertEqual(registered.status_code, 201)
+        cookie = registered.headers.get("set-cookie", "")
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=lax", cookie)
+        self.assertEqual(client.get("/api/auth/me").json()["user"]["username"], "session-user")
+        self.assertEqual(client.post("/api/auth/logout").status_code, 200)
+        self.assertIsNone(client.get("/api/auth/me").json()["user"])
+
+    def test_admin_can_manage_metadata_without_exposing_project_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.dict("os.environ", {"PROJECT_STORE_DIR": tmp}):
+                owner = self.authenticated_client("owner")
+                admin = self.authenticated_client("site-admin")
+                admin_user = admin.get("/api/auth/me").json()["user"]
+                update_user(admin_user["user_id"], role="admin")
+                project = owner.post("/api/projects", json={"title": "受保护项目", "source_text": "管理员列表不应出现全文"}).json()
+                private_sample = owner.post(
+                    f"/api/projects/{project['project_id']}/samples",
+                    json={"title": "受保护样例", "visibility": "private", "include_source": True},
+                ).json()
+
+                projects = admin.get("/api/admin/projects")
+                self.assertEqual(projects.status_code, 200)
+                self.assertEqual(projects.json()["projects"][0]["title"], "受保护项目")
+                self.assertNotIn("source_text", projects.json()["projects"][0])
+                self.assertEqual(admin.get(f"/api/projects/{project['project_id']}").status_code, 404)
+                self.assertEqual(admin.get(f"/api/samples/{private_sample['sample_id']}").status_code, 404)
+                self.assertEqual(admin.patch(f"/api/samples/{private_sample['sample_id']}", json={"visibility": "public"}).status_code, 404)
+                moderated = admin.patch(
+                    f"/api/admin/samples/{private_sample['sample_id']}",
+                    json={"visibility": "public"},
+                )
+                self.assertEqual(moderated.status_code, 200)
+                self.assertEqual(moderated.json()["sample"]["visibility"], "public")
+                self.assertNotIn("source_text", moderated.json()["sample"])
+                self.assertEqual(admin.get("/api/admin/overview").status_code, 200)
+                self.assertEqual(admin.delete(f"/api/admin/projects/{project['project_id']}").status_code, 200)
+                self.assertEqual(owner.get(f"/api/projects/{project['project_id']}").status_code, 404)
+
     def test_spa_fallback_only_allows_known_frontend_routes(self):
         client = TestClient(app)
 
@@ -258,7 +439,7 @@ class MainAPITest(unittest.TestCase):
 
     @patch.dict("os.environ", {"MAX_UPLOAD_BYTES": "8"})
     def test_pipeline_upload_rejects_oversized_file(self):
-        client = TestClient(app)
+        client = self.authenticated_client()
 
         response = client.post(
             "/api/pipeline/upload",
@@ -275,7 +456,7 @@ class MainAPITest(unittest.TestCase):
         self.assertEqual(_prepare_pipeline_text("0123456789abcdef"), "0123456789ab")
 
     def test_media_provider_and_plan_endpoints(self):
-        client = TestClient(app)
+        client = self.authenticated_client()
 
         providers = client.get("/api/media/providers")
         image_plan = client.post(
@@ -290,3 +471,45 @@ class MainAPITest(unittest.TestCase):
         self.assertEqual(image_plan.json()["style"], "anime")
         self.assertEqual(tts_plan.status_code, 200)
         self.assertEqual(tts_plan.json()["voice"], "female-soft")
+
+    def test_user_can_store_masked_api_configs_and_read_usage(self):
+        client = self.authenticated_client("byok-user")
+        saved = client.put(
+            "/api/account/api-configs/text",
+            json={
+                "provider": "custom",
+                "api_format": "openai",
+                "base_url": "https://api.example.com/v1",
+                "model": "example-chat",
+                "api_key": "secret-key-123456",
+                "enabled": True,
+            },
+        )
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertNotIn("secret-key-123456", saved.text)
+        configs = client.get("/api/account/api-configs").json()["configs"]
+        self.assertEqual(configs[0]["api_key_masked"], "••••3456")
+        self.assertTrue(configs[0]["has_api_key"])
+
+        user_id = client.get("/api/auth/me").json()["user"]["user_id"]
+        record_usage(user_id, "text", "custom", "example-chat", status="success", tokens_input=12, tokens_output=8)
+        usage = client.get("/api/account/usage").json()
+        self.assertEqual(usage["totals"]["calls"], 1)
+        self.assertEqual(usage["totals"]["tokens_input"], 12)
+
+    def test_admin_login_choice_rejects_regular_users_and_admin_sees_usage(self):
+        owner = self.authenticated_client("login-choice-user")
+        regular_login = TestClient(app).post(
+            "/api/auth/login",
+            json={"username": "login-choice-user", "password": "testing-password-123", "login_type": "admin"},
+        )
+        self.assertEqual(regular_login.status_code, 403)
+
+        admin = self.authenticated_client("usage-admin")
+        admin_user = admin.get("/api/auth/me").json()["user"]
+        update_user(admin_user["user_id"], role="admin")
+        owner_user = owner.get("/api/auth/me").json()["user"]
+        record_usage(owner_user["user_id"], "image", "glm", "cogview-4", status="success", units=1)
+        result = admin.get("/api/admin/usage")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["events"][0]["username"], "login-choice-user")

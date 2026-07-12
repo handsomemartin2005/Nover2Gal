@@ -1,5 +1,7 @@
 # Novel2Gal
 
+Frontend architecture, persistence, deployment, and QA notes: [docs/FRONTEND_ARCHITECTURE.md](docs/FRONTEND_ARCHITECTURE.md).
+
 Novel2Gal is an AI-assisted workbench that converts long-form fiction into a Galgame-style script from a selected point of view.
 
 It is not a simple "novel to dialogue" converter. The pipeline tries to understand chapters, scenes, characters, point-of-view knowledge, branching choices, visual staging, and playable click-through text.
