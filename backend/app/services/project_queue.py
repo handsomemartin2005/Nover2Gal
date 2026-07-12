@@ -11,6 +11,7 @@ from typing import Any
 from uuid import uuid4
 
 from app.importers.document_importer import import_document_bytes
+from app.core.config import Settings
 from app.parser.chapter_splitter import split_chapters
 from app.schemas.story import to_api_payload
 from app.services.novel_pipeline import run_pipeline
@@ -128,7 +129,7 @@ def create_project_from_upload(
     return public_project_payload(project_id)
 
 
-def run_project(project_id: str) -> None:
+def run_project(project_id: str, *, settings: Settings | None = None, llm_client: Any | None = None) -> None:
     project = _read_project(project_id)
     if not project:
         return
@@ -160,6 +161,8 @@ def run_project(project_id: str) -> None:
                 str(project.get("pov_character") or ""),
                 max_scenes=chapter_budget,
                 llm_model=project.get("llm_model") or None,
+                settings=settings,
+                llm_client=llm_client,
             )
             payload = to_api_payload(result)
             chapter_source_scenes = payload.get("source_scenes", [])

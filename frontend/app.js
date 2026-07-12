@@ -6,16 +6,16 @@ import { ProjectSession } from "/static/js/project-session.js?v=20260710-auth6";
 import { initLandingPage } from "/static/js/pages/landing-page.js?v=20260710-auth6";
 import { initTemplatesPage } from "/static/js/pages/templates-page.js?v=20260710-auth6";
 import { initProjectsPage } from "/static/js/pages/projects-page.js";
-import { initAccountPage } from "/static/js/pages/account-page.js?v=20260710-auth6";
-import { initAdminPage } from "/static/js/pages/admin-page.js?v=20260710-auth6";
-import { hydrateAuthShell, loadCurrentUser } from "/static/js/auth-state.js?v=20260710-auth6";
+import { initAccountPage } from "/static/js/pages/account-page.js?v=20260713-byok1";
+import { initAdminPage } from "/static/js/pages/admin-page.js?v=20260713-byok1";
+import { hydrateAuthShell, loadCurrentUser } from "/static/js/auth-state.js?v=20260713-byok1";
 import { openPublishSample } from "/static/js/components/publish-sample.js";
 import { openExportCenter } from "/static/js/components/export-center.js";
 import { openVersionHistory } from "/static/js/components/version-history.js";
 import { openResourceCenter } from "/static/js/components/resource-center.js?v=20260710-procurement1";
 import { openModal } from "/static/js/components/modal.js";
 import { showToast } from "/static/js/components/toast.js";
-import { api } from "/static/js/api-client.js?v=20260710-auth6";
+import { api } from "/static/js/api-client.js?v=20260713-byok1";
 
 window.__novel2galBuild = "20260710-auth6";
 window.__novel2galBootstrap = "started";
@@ -1244,7 +1244,14 @@ function renderResult(result) {
       const item = document.createElement("li");
       const personality = character.personality ? ` · ${character.personality}` : "";
       const speech = character.speech_style ? ` · ${character.speech_style}` : "";
-      item.textContent = `${character.name} · ${character.role}${personality}${speech}`;
+      const copy = document.createElement("span");
+      copy.textContent = `${character.name} · ${character.role}${personality}${speech}`;
+      const generate = document.createElement("button");
+      generate.type = "button";
+      generate.className = "character-generate-button";
+      generate.textContent = character.visual_notes?.generated_portrait ? "重新生成立绘" : "AI 生成立绘";
+      generate.addEventListener("click", () => generateCharacterPortrait(character, generate));
+      item.append(copy, generate);
       return item;
     }),
   );
@@ -1268,6 +1275,32 @@ function renderResult(result) {
   renderGamePreview(result);
   if (!restoringProject && projectSession) {
     projectSession.markDirty({ ...projectFormPayload(), result, status: "done", version_note: "生成完成自动保存" });
+  }
+}
+
+async function generateCharacterPortrait(character, button) {
+  button.disabled = true;
+  button.textContent = "生成中…";
+  try {
+    const project = currentProject?.project_id ? currentProject : await saveCurrentProject();
+    if (!project?.project_id) throw new Error("请先保存项目后再生成角色立绘");
+    const result = await api.generateCharacterImage(project.project_id, character.character_id || character.name, {
+      style: activeVisualStyle === "real" ? "real" : "anime",
+      size: "1024x1536",
+    });
+    const image = result.images?.[0] || {};
+    const url = image.url || (image.b64_json ? `data:image/png;base64,${image.b64_json}` : "");
+    if (!url) throw new Error("生图 API 未返回图片");
+    character.visual_notes = { ...(character.visual_notes || {}), generated_portrait: url };
+    characterProfilesByName[character.name] = character;
+    currentProject = await api.updateProject(project.project_id, { result: latestResult, version_note: `生成角色立绘：${character.name}` });
+    renderGamePreview(latestResult);
+    button.textContent = "重新生成立绘";
+    showToast(`${character.name} 的立绘已生成`, "success");
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "AI 生成立绘";
+    showToast(error.message || "立绘生成失败", "error");
   }
 }
 
@@ -1936,6 +1969,8 @@ function defaultStage(background) {
 }
 
 function characterPortrait(name, index, usedPortraits = new Set()) {
+  const generated = characterProfilesByName[name]?.visual_notes?.generated_portrait;
+  if (generated) return generated;
   const bucket = portraitBucket(name).filter(isLocalAssetUrl);
   if (bucket.length) {
     const start = Math.abs(stableHash(String(name || "protagonist")) + index) % bucket.length;

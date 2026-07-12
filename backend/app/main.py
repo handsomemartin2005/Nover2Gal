@@ -29,6 +29,16 @@ from app.services.auth_store import (
     revoke_session,
     update_user,
 )
+from app.services.ai_gateway import (
+    delete_api_config,
+    generate_image,
+    list_api_configs,
+    list_provider_presets,
+    save_api_config,
+    synthesize_speech,
+    usage_summary,
+    user_text_runtime,
+)
 from app.services.project_queue import (
     assign_project_owner,
     assign_sample_owner,
@@ -68,11 +78,30 @@ class ImageGenerationRequest(BaseModel):
     prompt: str = Field(min_length=1)
     scene_id: str = ""
     style: Literal["anime", "real"] = "anime"
+    size: str = Field(default="1024x1024", max_length=40)
+    count: int = Field(default=1, ge=1, le=4)
+
+
+class CharacterImageRequest(BaseModel):
+    style: Literal["anime", "real"] = "anime"
+    size: str = Field(default="1024x1536", max_length=40)
+    extra_prompt: str = Field(default="", max_length=1000)
 
 
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1)
     voice: str = "default"
+    response_format: Literal["mp3", "wav", "opus"] = "mp3"
+
+
+class APIConfigRequest(BaseModel):
+    provider: str = Field(default="custom", min_length=1, max_length=40)
+    api_format: str = Field(min_length=1, max_length=40)
+    base_url: str = Field(min_length=8, max_length=500)
+    model: str = Field(min_length=1, max_length=160)
+    api_key: str = Field(default="", max_length=1000)
+    extra_headers: dict[str, str] = Field(default_factory=dict)
+    enabled: bool = True
 
 
 class ProjectCreateRequest(BaseModel):
@@ -118,6 +147,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=32)
     password: str = Field(min_length=1, max_length=128)
+    login_type: Literal["user", "admin"] = "user"
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -232,6 +262,9 @@ def login_endpoint(payload: LoginRequest, request: Request, response: Response) 
     if not user:
         _record_auth_failure(request)
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+    if payload.login_type == "admin" and user.get("role") != "admin":
+        _record_auth_failure(request)
+        raise HTTPException(status_code=403, detail="该账号不是管理员")
     _clear_auth_failures(request)
     _start_user_session(response, request, user)
     return {"user": user}
@@ -274,21 +307,55 @@ def change_password_endpoint(
     return {"changed": True}
 
 
+@app.get("/api/account/api-configs")
+def account_api_configs_endpoint(user: dict[str, Any] = Depends(require_user)) -> dict:
+    return {"configs": list_api_configs(user["user_id"]), **list_provider_presets()}
+
+
+@app.put("/api/account/api-configs/{service_type}")
+def save_account_api_config_endpoint(
+    service_type: Literal["text", "image", "tts"],
+    payload: APIConfigRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    try:
+        return {"config": save_api_config(user["user_id"], service_type, payload.model_dump())}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.delete("/api/account/api-configs/{service_type}")
+def delete_account_api_config_endpoint(
+    service_type: Literal["text", "image", "tts"],
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    delete_api_config(user["user_id"], service_type)
+    return {"deleted": True, "service_type": service_type}
+
+
+@app.get("/api/account/usage")
+def account_usage_endpoint(days: int = 30, user: dict[str, Any] = Depends(require_user)) -> dict:
+    return usage_summary(user_id=user["user_id"], days=days, limit=50)
+
+
 @app.get("/")
 def frontend_index() -> FileResponse:
     return FileResponse(FRONTEND_DIR / "index.html", headers=INDEX_CACHE_HEADERS)
 
 
 @app.post("/api/pipeline/run")
-def run_pipeline_endpoint(request: PipelineRunRequest, _user: dict[str, Any] = Depends(require_user)) -> dict:
+def run_pipeline_endpoint(request: PipelineRunRequest, user: dict[str, Any] = Depends(require_user)) -> dict:
     _validate_text_size(request.text)
     text = _prepare_pipeline_text(request.text)
+    settings, client = user_text_runtime(user["user_id"])
     result = run_pipeline(
         request.title,
         text,
         request.pov_character,
         max_scenes=request.max_scenes,
         llm_model=request.llm_model,
+        settings=settings,
+        llm_client=client,
     )
     return to_api_payload(result)
 
@@ -310,6 +377,7 @@ def run_pipeline_job_endpoint(
         request.pov_character,
         request.max_scenes,
         request.llm_model,
+        user["user_id"],
     )
     return _job_public_payload(job_id, user["user_id"])
 
@@ -321,7 +389,7 @@ async def upload_pipeline_endpoint(
     title: str | None = Form(None),
     max_scenes: int | None = Form(None),
     llm_model: str | None = Form(None),
-    _user: dict[str, Any] = Depends(require_user),
+    user: dict[str, Any] = Depends(require_user),
 ) -> dict:
     content = await _read_upload_file(file)
     try:
@@ -330,6 +398,7 @@ async def upload_pipeline_endpoint(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     _validate_text_size(document.text)
     text = _prepare_pipeline_text(document.text)
+    settings, client = user_text_runtime(user["user_id"])
     result = await anyio.to_thread.run_sync(
         lambda: run_pipeline(
             title or document.title,
@@ -337,6 +406,8 @@ async def upload_pipeline_endpoint(
             pov_character,
             max_scenes=max_scenes,
             llm_model=_validate_upload_model(llm_model),
+            settings=settings,
+            llm_client=client,
         )
     )
     return to_api_payload(result)
@@ -369,6 +440,7 @@ async def upload_pipeline_job_endpoint(
         pov_character,
         max_scenes,
         normalized_model,
+        user["user_id"],
     )
     return _job_public_payload(job_id, user["user_id"])
 
@@ -401,7 +473,7 @@ async def upload_project_endpoint(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    background_tasks.add_task(run_project, project["project_id"])
+    background_tasks.add_task(_run_user_project, project["project_id"], user["user_id"])
     return project
 
 
@@ -423,6 +495,38 @@ def project_status_endpoint(project_id: str, user: dict[str, Any] = Depends(requ
         return public_project_payload(project_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Project not found") from exc
+
+
+@app.post("/api/projects/{project_id}/characters/{character_id}/generate-image")
+def generate_character_image_endpoint(
+    project_id: str,
+    character_id: str,
+    request: CharacterImageRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    _require_project_access(project_id, user)
+    project = public_project_payload(project_id)
+    characters = project.get("result", {}).get("analysis", {}).get("characters", []) if project.get("result") else []
+    character = next(
+        (item for item in characters if str(item.get("character_id")) == character_id or str(item.get("name")) == character_id),
+        None,
+    )
+    if not character:
+        raise HTTPException(status_code=404, detail="Character not found in the generated project")
+    notes = character.get("visual_notes") or {}
+    prompt = (
+        f"Create an original {request.style} full-body visual-novel character concept. "
+        f"Name: {character.get('name', '')}. Role: {character.get('role', '')}. "
+        f"Personality: {character.get('personality', '')}. Visual notes: {notes}. "
+        "Consistent character design, expressive face, clean simple background, no text, no watermark. "
+        f"{request.extra_prompt}"
+    ).strip()
+    try:
+        return generate_image(user["user_id"], prompt=prompt, size=request.size, style=request.style, count=1)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.patch("/api/projects/{project_id}")
@@ -583,6 +687,17 @@ def admin_users_endpoint(_admin: dict[str, Any] = Depends(require_admin)) -> dic
             "sample_count": sample_counts.get(user["user_id"], 0),
         })
     return {"users": users}
+
+
+@app.get("/api/admin/usage")
+def admin_usage_endpoint(days: int = 30, _admin: dict[str, Any] = Depends(require_admin)) -> dict:
+    result = usage_summary(days=days, limit=200)
+    users = {user["user_id"]: user for user in list_users()}
+    for event in result["events"]:
+        owner = users.get(event["user_id"])
+        event["username"] = owner["username"] if owner else "已删除用户"
+        event["display_name"] = owner["display_name"] if owner else "已删除用户"
+    return result
 
 
 @app.patch("/api/admin/users/{user_id}")
@@ -755,19 +870,28 @@ def _execute_pipeline_job(
     pov_character: str,
     max_scenes: int | None,
     llm_model: str | None,
+    user_id: str,
 ) -> None:
     _update_pipeline_job(job_id, status="running")
     try:
+        settings, client = user_text_runtime(user_id)
         result = run_pipeline(
             title,
             text,
             pov_character,
             max_scenes=max_scenes,
             llm_model=llm_model,
+            settings=settings,
+            llm_client=client,
         )
         _update_pipeline_job(job_id, status="done", result=to_api_payload(result))
     except Exception as exc:
         _update_pipeline_job(job_id, status="failed", error=str(exc))
+
+
+def _run_user_project(project_id: str, user_id: str) -> None:
+    settings, client = user_text_runtime(user_id)
+    run_project(project_id, settings=settings, llm_client=client)
 
 
 def _update_pipeline_job(
@@ -905,8 +1029,14 @@ def _clear_auth_failures(request: Request) -> None:
 
 
 @app.get("/api/media/providers")
-def media_providers_endpoint(_user: dict[str, Any] = Depends(require_user)) -> dict:
-    return provider_status(Settings.from_env())
+def media_providers_endpoint(user: dict[str, Any] = Depends(require_user)) -> dict:
+    defaults = provider_status(Settings.from_env())
+    return {
+        **defaults,
+        "server_defaults": defaults,
+        "user_configs": list_api_configs(user["user_id"]),
+        **list_provider_presets(),
+    }
 
 
 @app.post("/api/media/image/plan")
@@ -925,6 +1055,39 @@ def image_generation_plan_endpoint(
 @app.post("/api/media/tts/plan")
 def tts_plan_endpoint(request: TTSRequest, _user: dict[str, Any] = Depends(require_user)) -> dict:
     return build_tts_plan(text=request.text, voice=request.voice, settings=Settings.from_env())
+
+
+@app.post("/api/media/image/generate")
+def image_generate_endpoint(
+    request: ImageGenerationRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> dict:
+    try:
+        return generate_image(
+            user["user_id"], prompt=request.prompt, size=request.size,
+            style=request.style, count=request.count,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/api/media/tts/synthesize")
+def tts_synthesize_endpoint(
+    request: TTSRequest,
+    user: dict[str, Any] = Depends(require_user),
+) -> Response:
+    try:
+        content, media_type = synthesize_speech(
+            user["user_id"], text=request.text, voice=request.voice,
+            response_format=request.response_format,
+        )
+        return Response(content=content, media_type=media_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.get("/{full_path:path}")

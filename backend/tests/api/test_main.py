@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services.auth_store import update_user
+from app.services.ai_gateway import record_usage
 from tests.helpers import write_sample_epub
 
 
@@ -470,3 +471,45 @@ class MainAPITest(unittest.TestCase):
         self.assertEqual(image_plan.json()["style"], "anime")
         self.assertEqual(tts_plan.status_code, 200)
         self.assertEqual(tts_plan.json()["voice"], "female-soft")
+
+    def test_user_can_store_masked_api_configs_and_read_usage(self):
+        client = self.authenticated_client("byok-user")
+        saved = client.put(
+            "/api/account/api-configs/text",
+            json={
+                "provider": "custom",
+                "api_format": "openai",
+                "base_url": "https://api.example.com/v1",
+                "model": "example-chat",
+                "api_key": "secret-key-123456",
+                "enabled": True,
+            },
+        )
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertNotIn("secret-key-123456", saved.text)
+        configs = client.get("/api/account/api-configs").json()["configs"]
+        self.assertEqual(configs[0]["api_key_masked"], "••••3456")
+        self.assertTrue(configs[0]["has_api_key"])
+
+        user_id = client.get("/api/auth/me").json()["user"]["user_id"]
+        record_usage(user_id, "text", "custom", "example-chat", status="success", tokens_input=12, tokens_output=8)
+        usage = client.get("/api/account/usage").json()
+        self.assertEqual(usage["totals"]["calls"], 1)
+        self.assertEqual(usage["totals"]["tokens_input"], 12)
+
+    def test_admin_login_choice_rejects_regular_users_and_admin_sees_usage(self):
+        owner = self.authenticated_client("login-choice-user")
+        regular_login = TestClient(app).post(
+            "/api/auth/login",
+            json={"username": "login-choice-user", "password": "testing-password-123", "login_type": "admin"},
+        )
+        self.assertEqual(regular_login.status_code, 403)
+
+        admin = self.authenticated_client("usage-admin")
+        admin_user = admin.get("/api/auth/me").json()["user"]
+        update_user(admin_user["user_id"], role="admin")
+        owner_user = owner.get("/api/auth/me").json()["user"]
+        record_usage(owner_user["user_id"], "image", "glm", "cogview-4", status="success", units=1)
+        result = admin.get("/api/admin/usage")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["events"][0]["username"], "login-choice-user")

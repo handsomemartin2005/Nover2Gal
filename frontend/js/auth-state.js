@@ -1,4 +1,4 @@
-import { api } from "/static/js/api-client.js?v=20260710-auth6";
+import { api } from "/static/js/api-client.js?v=20260713-byok1";
 
 let currentUser = null;
 let loaded = false;
