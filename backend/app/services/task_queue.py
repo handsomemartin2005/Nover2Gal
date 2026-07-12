@@ -60,7 +60,10 @@ def pop_task(timeout: int = 5) -> dict[str, Any] | None:
     raw = _client().brpoplpush(QUEUE_KEY, PROCESSING_KEY, timeout=timeout)
     if not raw:
         return None
-    task = json.loads(raw)
+    try:
+        task = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        task = {"kind": "invalid", "error": "Malformed queue payload"}
     task["_queue_raw"] = raw
     return task
 

@@ -22,8 +22,7 @@ class MotionController {
     root.getAnimations().forEach((animation) => animation.cancel());
     root.style.removeProperty("opacity");
     root.classList.remove("route-enter");
-    requestAnimationFrame(() => root.classList.add("route-enter"));
-    this.revealPendingOverlay();
+    this.cancelPendingOverlay();
     if (this.reduced) return;
 
     root.querySelectorAll(".anime-button, .icon-button, .landing-button").forEach((button) => {

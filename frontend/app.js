@@ -1,5 +1,5 @@
 import { animeHeaderMarkup } from "/static/js/components/anime-header.js?v=20260710-auth6";
-import { motionController } from "/static/js/motion/motion-controller.js?v=20260710-auth6";
+import { motionController } from "/static/js/motion/motion-controller.js?v=20260713-navfix1";
 import { uiController } from "/static/js/components/ui-controller.js";
 import { commandPalette } from "/static/js/components/command-palette.js";
 import { ProjectSession } from "/static/js/project-session.js?v=20260710-auth6";
@@ -137,7 +137,7 @@ async function navigateTo(path) {
       const saved = await saveCurrentProject();
       if (!saved && !window.confirm("当前项目尚未同步到服务器，确定离开并保留本地快照吗？")) return;
     }
-    await motionController.leave(appRoot, destination.pathname);
+    motionController.cancelPendingOverlay();
     if (`${window.location.pathname}${window.location.search}` !== `${destination.pathname}${destination.search}`) {
       window.history.pushState({}, "", `${destination.pathname}${destination.search}`);
     }
@@ -174,7 +174,6 @@ function renderRoute(path = window.location.pathname) {
   uiController.unmount();
   clearTimeout(autoplayTimer);
   autoplayEnabled = false;
-  if (bgmAudio) bgmAudio.pause();
   resetWorkbenchDom();
   if (routePath === "/create" || routePath === "/studio") {
     appRoot.innerHTML = workbenchPageTemplate();
@@ -195,7 +194,7 @@ function renderRoute(path = window.location.pathname) {
   motionController.mount(appRoot);
   hydrateAuthShell(appRoot);
   initializeRouteFeatures(routePath, currentRouteVersion);
-  window.scrollTo({ top: 0, behavior: motionController.reduced ? "auto" : "smooth" });
+  window.scrollTo({ top: 0, behavior: "auto" });
 }
 
 function initializeRouteFeatures(path, currentRouteVersion) {
@@ -1767,8 +1766,9 @@ function backgroundToLocation(background) {
 function updateBgm(frame, force = false) {
   const asset = selectBgmAsset(frame.bgm);
   if (!asset?.url) return;
-  if (bgmAudio.src !== asset.url) {
-    bgmAudio.src = asset.url;
+  const nextUrl = new URL(asset.url, window.location.href).href;
+  if (bgmAudio.src !== nextUrl) {
+    bgmAudio.src = nextUrl;
   }
   if (!bgmEnabled && !force) return;
   if (bgmEnabled) {
