@@ -13,6 +13,10 @@ $packageName = "novel2gal-release.tar.gz"
 $package = Join-Path $root $packageName
 $remotePackage = "/tmp/$packageName"
 $remoteInstaller = "/tmp/novel2gal-server_install.sh"
+$remoteWeed = "/tmp/novel2gal-weed"
+$cacheDir = Join-Path $root "tmp\deploy-cache"
+$weedArchive = Join-Path $cacheDir "seaweedfs-linux-amd64.tar.gz"
+$weedBinary = Join-Path $cacheDir "weed"
 
 function Invoke-Checked([string]$File, [string[]]$Arguments) {
   & $File @Arguments
@@ -47,6 +51,23 @@ Invoke-Checked "scp" @(
   "-o", "StrictHostKeyChecking=no",
   (Join-Path $PSScriptRoot "server_install.sh"),
   "$User@$Server`:$remoteInstaller"
+)
+
+if (-not (Test-Path $weedBinary)) {
+  New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+  if (Get-Command gh -ErrorAction SilentlyContinue) {
+    Invoke-Checked "gh" @("release", "download", "4.39", "--repo", "seaweedfs/seaweedfs", "--pattern", "linux_amd64.tar.gz", "--output", $weedArchive, "--clobber")
+  } else {
+    Invoke-WebRequest -Uri "https://github.com/seaweedfs/seaweedfs/releases/download/4.39/linux_amd64.tar.gz" -OutFile $weedArchive
+  }
+  tar -xzf $weedArchive -C $cacheDir weed
+}
+Write-Host "[3/5] Uploading object-store binary..."
+Invoke-Checked "scp" @(
+  "-i", $key.Path,
+  "-o", "StrictHostKeyChecking=no",
+  $weedBinary,
+  "$User@$Server`:$remoteWeed"
 )
 
 Write-Host "[4/5] Installing and restarting on $Server..."

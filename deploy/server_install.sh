@@ -123,38 +123,41 @@ if ! grep -q '^DATABASE_URL=' /etc/novel2gal.env; then
 fi
 
 echo "[7/10] Configuring S3-compatible object storage..."
-if ! command -v minio >/dev/null 2>&1; then
-  curl -fsSL https://dl.min.io/server/minio/release/linux-amd64/minio -o /usr/local/bin/minio
-  chmod +x /usr/local/bin/minio
+if [[ -f /tmp/novel2gal-weed ]]; then
+  install -m 0755 /tmp/novel2gal-weed /usr/local/bin/weed
+elif ! command -v weed >/dev/null 2>&1; then
+  curl -fsSL https://github.com/seaweedfs/seaweedfs/releases/download/4.39/linux_amd64.tar.gz -o /tmp/seaweedfs.tar.gz
+  tar -xzf /tmp/seaweedfs.tar.gz -C /usr/local/bin weed
+  chmod +x /usr/local/bin/weed
 fi
-if ! id -u minio-user >/dev/null 2>&1; then
-  useradd --system --home /var/lib/minio --shell /usr/sbin/nologin minio-user
+if ! id -u seaweedfs >/dev/null 2>&1; then
+  useradd --system --home /var/lib/seaweedfs --shell /usr/sbin/nologin seaweedfs
 fi
-mkdir -p /var/lib/minio
-chown -R minio-user:minio-user /var/lib/minio
+mkdir -p /var/lib/seaweedfs
+chown -R seaweedfs:seaweedfs /var/lib/seaweedfs
 if ! grep -q '^S3_ACCESS_KEY_ID=' /etc/novel2gal.env; then
-  MINIO_USER="novel2gal-$(python3 -c 'import secrets; print(secrets.token_hex(4))')"
-  MINIO_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+  S3_USER="novel2gal-$(python3 -c 'import secrets; print(secrets.token_hex(4))')"
+  S3_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
   cat >> /etc/novel2gal.env <<EOF
-S3_ENDPOINT_URL=http://127.0.0.1:9000
-S3_ACCESS_KEY_ID=${MINIO_USER}
-S3_SECRET_ACCESS_KEY=${MINIO_PASSWORD}
+S3_ENDPOINT_URL=http://127.0.0.1:8333
+S3_ACCESS_KEY_ID=${S3_USER}
+S3_SECRET_ACCESS_KEY=${S3_PASSWORD}
 S3_BUCKET=novel2gal-media
 S3_REGION=us-east-1
-MINIO_ROOT_USER=${MINIO_USER}
-MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
+AWS_ACCESS_KEY_ID=${S3_USER}
+AWS_SECRET_ACCESS_KEY=${S3_PASSWORD}
 EOF
 fi
-cat >/etc/systemd/system/minio.service <<'EOF'
+cat >/etc/systemd/system/seaweedfs.service <<'EOF'
 [Unit]
-Description=Novel2Gal MinIO object storage
+Description=Novel2Gal SeaweedFS S3 object storage
 After=network-online.target
 
 [Service]
-User=minio-user
-Group=minio-user
+User=seaweedfs
+Group=seaweedfs
 EnvironmentFile=/etc/novel2gal.env
-ExecStart=/usr/local/bin/minio server /var/lib/minio --address 127.0.0.1:9000 --console-address 127.0.0.1:9001
+ExecStart=/usr/local/bin/weed mini -dir=/var/lib/seaweedfs -ip=127.0.0.1 -ip.bind=127.0.0.1 -s3.port.iceberg=0
 Restart=always
 RestartSec=3
 LimitNOFILE=65536
@@ -163,7 +166,8 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable --now minio
+systemctl disable --now minio 2>/dev/null || true
+systemctl enable --now seaweedfs
 
 if ! grep -q '^DEEPSEEK_API=.\+' /etc/novel2gal.env; then
   echo
@@ -178,8 +182,8 @@ echo "[8/10] Creating systemd services..."
 cat >/etc/systemd/system/${SERVICE_NAME}.service <<EOF
 [Unit]
 Description=Novel2Gal FastAPI service
-After=network.target redis-server.service postgresql.service minio.service
-Requires=redis-server.service postgresql.service minio.service
+After=network.target redis-server.service postgresql.service seaweedfs.service
+Requires=redis-server.service postgresql.service seaweedfs.service
 
 [Service]
 Type=simple
@@ -196,8 +200,8 @@ EOF
 cat >/etc/systemd/system/${SERVICE_NAME}-worker.service <<EOF
 [Unit]
 Description=Novel2Gal Redis background worker
-After=network.target redis-server.service postgresql.service minio.service
-Requires=redis-server.service postgresql.service minio.service
+After=network.target redis-server.service postgresql.service seaweedfs.service
+Requires=redis-server.service postgresql.service seaweedfs.service
 
 [Service]
 Type=simple
