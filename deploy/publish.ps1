@@ -59,6 +59,10 @@ $health = Invoke-RestMethod -Uri $healthUrl -Method Get -TimeoutSec 30
 if ($health.status -ne "ok") {
   throw "Health check returned an unexpected response: $($health | ConvertTo-Json -Compress)"
 }
+$ready = Invoke-RestMethod -Uri "https://$Domain/health/ready" -Method Get -TimeoutSec 30
+if ($ready.status -ne "ready") {
+  throw "Readiness check returned an unexpected response: $($ready | ConvertTo-Json -Compress)"
+}
 
 if (-not $KeepPackage -and (Test-Path $package)) {
   Remove-Item $package -Force

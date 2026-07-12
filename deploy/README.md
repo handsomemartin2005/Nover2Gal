@@ -16,6 +16,9 @@ powershell -ExecutionPolicy Bypass -File .\deploy\publish.ps1
 4. 重启 `novel2gal` 和 Nginx。
 5. 请求 `http://dianlijiliang.cn/health`，确认返回 `{"status":"ok"}`。
 
+安装脚本还会以本机回环地址部署 Redis、PostgreSQL 和 MinIO，并启动独立的
+`novel2gal-worker`。发布成功需要 `/health/ready` 中三个依赖全部为 `true`。
+
 默认不会保留本地发布包。需要保留时：
 
 ```powershell

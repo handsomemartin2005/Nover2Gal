@@ -12,16 +12,27 @@
 
 ## 当前边界
 
-项目仍是适合 MVP 的“FastAPI 单体 + SQLite 身份/用量 + 文件式项目存储”。优点是部署简单，短板是多实例并发与任务可靠性有限：后台任务和部分任务状态仍在进程内，项目 JSON 更新依赖文件锁。
+生产环境现已升级为“FastAPI + Redis worker + PostgreSQL + S3-compatible 对象存储”。SQLite 仅保留身份、Session、BYOK 配置与轻量用量账本；小说原文暂时仍保存在受限本地目录，项目 JSON 元数据已进入 PostgreSQL。
+
+Redis 队列使用 pending/processing 双队列和显式确认，worker 重启时会回收未确认任务。PostgreSQL 启动迁移只导入尚不存在的旧项目，防止历史 JSON 覆盖数据库新状态。生成图片和语音会落入对象存储，再以站内稳定 URL 提供。
 
 ## 推荐演进顺序
 
 1. 将 `main.py` 拆成 `auth / account / admin / projects / media` 五组 Router，保持现有 URL 不变。
-2. 将项目元数据从 JSON 文件迁移到 PostgreSQL；大原文、图片、音频放对象存储，数据库只存引用。
-3. 将后台生成任务迁移到 Redis + Celery/Dramatiq/Arq，加入幂等键、重试、取消、超时和断点续跑。
+2. ~~将项目元数据从 JSON 文件迁移到 PostgreSQL。~~ 已完成，保留一次性兼容导入。
+3. ~~将后台生成任务迁移到 Redis。~~ 已完成基础持久队列、确认和崩溃回收；后续补用户取消、指数退避和死信队列。
 4. API Key 加密迁移到云 KMS/Vault envelope encryption，并加入密钥轮换版本号。
 5. 用量账本加入供应商单价快照与预算阈值，支持用户日/月限额、失败熔断和管理员告警。
 6. 为角色建立独立资产表，支持多版本立绘、表情差分、审核、删除和对象存储生命周期。
+
+## 生产基础设施
+
+- `novel2gal.service`：FastAPI Web 进程。
+- `novel2gal-worker.service`：Redis 队列消费进程。
+- PostgreSQL：`projects.payload JSONB` 保存完整项目元数据，并建立所有者/更新时间索引。
+- Redis：任务、processing 队列及 7 天任务结果。
+- MinIO：部署为仅监听 `127.0.0.1` 的 S3-compatible 服务，媒体通过站内 `/api/media/assets/*` 读取。
+- `GET /health/ready`：同时检查 Redis、PostgreSQL 和对象存储。
 
 ## 新接口
 

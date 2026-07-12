@@ -15,9 +15,39 @@ from app.core.config import Settings
 from app.parser.chapter_splitter import split_chapters
 from app.schemas.story import to_api_payload
 from app.services.novel_pipeline import run_pipeline
+from app.services import postgres_project_store
 
 
-PROJECT_LOCK = threading.Lock()
+class _ProjectStoreLock:
+    """Serialize read-modify-write operations across web and worker processes."""
+
+    def __init__(self) -> None:
+        self.local = threading.RLock()
+        self.remote = None
+
+    def __enter__(self):
+        self.local.acquire()
+        redis_url = os.environ.get("REDIS_URL", "").strip()
+        if redis_url:
+            import redis
+            self.remote = redis.Redis.from_url(redis_url).lock(
+                "novel2gal:project-store-lock", timeout=180, blocking_timeout=30
+            )
+            if not self.remote.acquire(blocking=True):
+                self.local.release()
+                raise TimeoutError("Timed out waiting for the project store lock")
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        try:
+            if self.remote:
+                self.remote.release()
+        finally:
+            self.remote = None
+            self.local.release()
+
+
+PROJECT_LOCK = _ProjectStoreLock()
 DEFAULT_PROJECT_STORE_DIR = Path("/var/lib/novel2gal/projects") if os.name != "nt" else Path(__file__).resolve().parents[3] / "data" / "projects"
 DEFAULT_MAX_CHAPTER_CHARS = 60_000
 PROJECT_ID_PATTERN = re.compile(r"^[a-f0-9]{32}$")
@@ -241,15 +271,20 @@ def assign_project_owner(project_id: str, owner_id: str) -> dict[str, Any]:
 
 
 def list_projects(owner_id: str | None = None) -> list[dict[str, Any]]:
-    root = _store_dir()
-    if not root.exists():
-        return []
+    if postgres_project_store.enabled():
+        stored_projects = postgres_project_store.list_all(owner_id)
+    else:
+        root = _store_dir()
+        if not root.exists():
+            return []
+        stored_projects = []
+        for path in root.glob("*/project.json"):
+            try:
+                stored_projects.append(json.loads(path.read_text(encoding="utf-8")))
+            except json.JSONDecodeError:
+                continue
     projects = []
-    for path in root.glob("*/project.json"):
-        try:
-            project = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            continue
+    for project in stored_projects:
         if owner_id is not None and project.get("owner_id") != owner_id:
             continue
         summary = {key: project.get(key) for key in [
@@ -308,10 +343,12 @@ def update_project(project_id: str, updates: dict[str, Any], *, version_note: st
 
 def delete_project(project_id: str) -> None:
     project_dir = _project_dir(project_id)
-    if not project_dir.exists():
-        raise KeyError(project_id)
     with PROJECT_LOCK:
-        shutil.rmtree(project_dir)
+        existed = postgres_project_store.delete(project_id) if postgres_project_store.enabled() else project_dir.exists()
+        if not existed:
+            raise KeyError(project_id)
+        if project_dir.exists():
+            shutil.rmtree(project_dir)
 
 
 def duplicate_project(project_id: str, *, owner_id: str = "") -> dict[str, Any]:
@@ -478,7 +515,15 @@ def claim_legacy_content(owner_id: str) -> dict[str, int]:
     claimed_samples = 0
     root = _store_dir()
     with PROJECT_LOCK:
-        if root.exists():
+        if postgres_project_store.enabled():
+            for project in postgres_project_store.list_all():
+                if project.get("owner_id"):
+                    continue
+                project["owner_id"] = owner_id
+                project["updated_at"] = time.time()
+                postgres_project_store.upsert(project["project_id"], project)
+                claimed_projects += 1
+        if root.exists() and not postgres_project_store.enabled():
             for path in root.glob("*/project.json"):
                 try:
                     project = json.loads(path.read_text(encoding="utf-8"))
@@ -545,6 +590,8 @@ def _read_project(project_id: str) -> dict[str, Any] | None:
 
 
 def _read_project_unlocked(project_id: str) -> dict[str, Any] | None:
+    if postgres_project_store.enabled():
+        return postgres_project_store.get(project_id)
     path = _project_dir(project_id) / "project.json"
     if not path.exists():
         return None
@@ -557,6 +604,9 @@ def _write_project(project_id: str, project: dict[str, Any]) -> None:
 
 
 def _write_project_unlocked(project_id: str, project: dict[str, Any]) -> None:
+    if postgres_project_store.enabled():
+        postgres_project_store.upsert(project_id, project)
+        return
     path = _project_dir(project_id) / "project.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(project, ensure_ascii=False, indent=2), encoding="utf-8")

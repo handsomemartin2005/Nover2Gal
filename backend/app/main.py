@@ -39,6 +39,9 @@ from app.services.ai_gateway import (
     usage_summary,
     user_text_runtime,
 )
+from app.services.object_store import ensure_bucket, get_bytes, persist_image_item, put_bytes
+from app.services import object_store
+from app.services import postgres_project_store, task_queue
 from app.services.project_queue import (
     assign_project_owner,
     assign_sample_owner,
@@ -186,6 +189,10 @@ SESSION_COOKIE_NAME = "novel2gal_session"
 
 @asynccontextmanager
 async def app_lifespan(_app: FastAPI):
+    if postgres_project_store.enabled():
+        postgres_project_store.initialize()
+        postgres_project_store.migrate_file_projects(Path(os.environ.get("PROJECT_STORE_DIR") or "/var/lib/novel2gal/projects"))
+    ensure_bucket()
     admin = ensure_bootstrap_admin()
     if admin and os.environ.get("NOVEL2GAL_CLAIM_LEGACY_TO_ADMIN", "").lower() in {"1", "true", "yes"}:
         claim_legacy_content(admin["user_id"])
@@ -217,6 +224,18 @@ if FRONTEND_DIR.exists():
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/health/ready")
+def readiness() -> dict[str, Any]:
+    dependencies = {
+        "redis": task_queue.healthy(),
+        "postgresql": postgres_project_store.healthy(),
+        "object_storage": object_store.healthy(),
+    }
+    if not all(dependencies.values()):
+        raise HTTPException(status_code=503, detail={"status": "degraded", "dependencies": dependencies})
+    return {"status": "ready", "dependencies": dependencies}
 
 
 def optional_user(request: Request) -> dict[str, Any] | None:
@@ -368,17 +387,14 @@ def run_pipeline_job_endpoint(
 ) -> dict:
     _validate_text_size(request.text)
     text = _prepare_pipeline_text(request.text)
-    job_id = _create_pipeline_job(title=request.title, owner_id=user["user_id"])
-    background_tasks.add_task(
-        _execute_pipeline_job,
-        job_id,
-        request.title,
-        text,
-        request.pov_character,
-        request.max_scenes,
-        request.llm_model,
-        user["user_id"],
-    )
+    if task_queue.enabled():
+        job_id = task_queue.enqueue_pipeline(owner_id=user["user_id"], title=request.title, text=text,
+                                             pov_character=request.pov_character, max_scenes=request.max_scenes,
+                                             llm_model=request.llm_model)
+    else:
+        job_id = _create_pipeline_job(title=request.title, owner_id=user["user_id"])
+        background_tasks.add_task(_execute_pipeline_job, job_id, request.title, text, request.pov_character,
+                                  request.max_scenes, request.llm_model, user["user_id"])
     return _job_public_payload(job_id, user["user_id"])
 
 
@@ -431,17 +447,14 @@ async def upload_pipeline_job_endpoint(
     _validate_text_size(document.text)
     text = _prepare_pipeline_text(document.text)
     normalized_model = _validate_upload_model(llm_model)
-    job_id = _create_pipeline_job(title=title or document.title, owner_id=user["user_id"])
-    background_tasks.add_task(
-        _execute_pipeline_job,
-        job_id,
-        title or document.title,
-        text,
-        pov_character,
-        max_scenes,
-        normalized_model,
-        user["user_id"],
-    )
+    if task_queue.enabled():
+        job_id = task_queue.enqueue_pipeline(owner_id=user["user_id"], title=title or document.title,
+                                             text=text, pov_character=pov_character, max_scenes=max_scenes,
+                                             llm_model=normalized_model)
+    else:
+        job_id = _create_pipeline_job(title=title or document.title, owner_id=user["user_id"])
+        background_tasks.add_task(_execute_pipeline_job, job_id, title or document.title, text, pov_character,
+                                  max_scenes, normalized_model, user["user_id"])
     return _job_public_payload(job_id, user["user_id"])
 
 
@@ -473,7 +486,10 @@ async def upload_project_endpoint(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    background_tasks.add_task(_run_user_project, project["project_id"], user["user_id"])
+    if task_queue.enabled():
+        task_queue.enqueue_project(project_id=project["project_id"], owner_id=user["user_id"])
+    else:
+        background_tasks.add_task(_run_user_project, project["project_id"], user["user_id"])
     return project
 
 
@@ -522,7 +538,9 @@ def generate_character_image_endpoint(
         f"{request.extra_prompt}"
     ).strip()
     try:
-        return generate_image(user["user_id"], prompt=prompt, size=request.size, style=request.style, count=1)
+        result = generate_image(user["user_id"], prompt=prompt, size=request.size, style=request.style, count=1)
+        result["images"] = [persist_image_item(item) for item in result.get("images", [])]
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -914,6 +932,11 @@ def _update_pipeline_job(
 
 
 def _job_public_payload(job_id: str, user_id: str, *, is_admin: bool = False) -> dict:
+    if task_queue.enabled():
+        job = task_queue.get_job(job_id)
+        if not job or (not is_admin and job.get("owner_id") != user_id):
+            raise HTTPException(status_code=404, detail="Pipeline job not found")
+        return {key: job.get(key) for key in ("job_id", "title", "status", "created_at", "updated_at", "error", "result")}
     with PIPELINE_JOB_LOCK:
         job = PIPELINE_JOBS.get(job_id)
         if not job:
@@ -1063,10 +1086,12 @@ def image_generate_endpoint(
     user: dict[str, Any] = Depends(require_user),
 ) -> dict:
     try:
-        return generate_image(
+        result = generate_image(
             user["user_id"], prompt=request.prompt, size=request.size,
             style=request.style, count=request.count,
         )
+        result["images"] = [persist_image_item(item) for item in result.get("images", [])]
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -1083,11 +1108,21 @@ def tts_synthesize_endpoint(
             user["user_id"], text=request.text, voice=request.voice,
             response_format=request.response_format,
         )
-        return Response(content=content, media_type=media_type)
+        stored = put_bytes(content, content_type=media_type, category="audio", extension=request.response_format)
+        return Response(content=content, media_type=media_type, headers={"X-Novel2Gal-Asset-Url": stored["url"]})
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.get("/api/media/assets/{asset_key:path}")
+def media_asset_endpoint(asset_key: str) -> Response:
+    try:
+        content, media_type = get_bytes(asset_key)
+        return Response(content=content, media_type=media_type, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Asset not found") from exc
 
 
 @app.get("/{full_path:path}")
