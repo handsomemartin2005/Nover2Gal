@@ -13,7 +13,12 @@ def enabled() -> bool:
 
 def healthy() -> bool:
     if not enabled():
-        return True
+        try:
+            root = _local_root()
+            root.mkdir(parents=True, exist_ok=True)
+            return root.is_dir() and os.access(root, os.W_OK)
+        except OSError:
+            return False
     try:
         _client().head_bucket(Bucket=os.environ["S3_BUCKET"])
         return True

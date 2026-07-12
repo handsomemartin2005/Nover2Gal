@@ -53,22 +53,17 @@ Invoke-Checked "scp" @(
   "$User@$Server`:$remoteInstaller"
 )
 
-if (-not (Test-Path $weedBinary)) {
-  New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
-  if (Get-Command gh -ErrorAction SilentlyContinue) {
-    Invoke-Checked "gh" @("release", "download", "4.39", "--repo", "seaweedfs/seaweedfs", "--pattern", "linux_amd64.tar.gz", "--output", $weedArchive, "--clobber")
-  } else {
-    Invoke-WebRequest -Uri "https://github.com/seaweedfs/seaweedfs/releases/download/4.39/linux_amd64.tar.gz" -OutFile $weedArchive
-  }
-  tar -xzf $weedArchive -C $cacheDir weed
+if (Test-Path $weedBinary) {
+  Write-Host "[3/5] Uploading object-store binary..."
+  Invoke-Checked "scp" @(
+    "-i", $key.Path,
+    "-o", "StrictHostKeyChecking=no",
+    $weedBinary,
+    "$User@$Server`:$remoteWeed"
+  )
+} else {
+  Write-Host "[3/5] SeaweedFS cache not present; using filesystem object-store backend."
 }
-Write-Host "[3/5] Uploading object-store binary..."
-Invoke-Checked "scp" @(
-  "-i", $key.Path,
-  "-o", "StrictHostKeyChecking=no",
-  $weedBinary,
-  "$User@$Server`:$remoteWeed"
-)
 
 Write-Host "[4/5] Installing and restarting on $Server..."
 $remoteCommand = "chmod +x $remoteInstaller && NOVEL2GAL_DOMAIN=$Domain $remoteInstaller $remotePackage"
